@@ -162,6 +162,9 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
  */
 
 var templateFuncs = template.FuncMap{
+	"add": func(a, b int) int {
+		return a + b
+	},
 	"initials": func(name string) string {
 		parts := strings.Fields(strings.TrimSpace(name))
 		if len(parts) == 0 {
