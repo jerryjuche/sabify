@@ -10,6 +10,12 @@ import (
 	"sabify/internal/models"
 )
 
+type AIInsight struct {
+	Type    string
+	Title   string
+	Message string
+}
+
 type templateData struct {
 	CurrentYear int
 	Title       string
