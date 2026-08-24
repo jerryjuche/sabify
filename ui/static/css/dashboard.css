@@ -891,6 +891,35 @@
     flex-shrink: 0;
 }
 
+.row-action {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-full);
+    padding: var(--space-2) var(--space-4);
+    text-decoration: none;
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.row-action svg {
+    width: 14px;
+    height: 14px;
+}
+
+.row-action:hover {
+    background: var(--color-primary);
+    color: #ffffff;
+    transform: translateX(2px);
+}
+
 
 /* Study groups */
 

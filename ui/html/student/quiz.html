@@ -1,0 +1,315 @@
+{{/*
+	=====================================================================
+	STUDENT QUIZ PAGE — FRONTEND CONTRACT (backend team reference)
+	=====================================================================
+	Rendered via app.render(w, status, "student/quiz.html", data).
+
+	Expected templateData fields:
+
+	  Quiz            *models.QuizWithCourse  (or equivalent)
+	    .ID .Title .Description .CourseTitle .QuestionCount
+
+	  Questions       []models.Question
+	    .ID .QuestionText .OptionA .OptionB .OptionC .OptionD
+
+	  CorrectAnswers  map[string]string
+	    question ID -> "A"|"B"|"C"|"D".
+	    Enables instant client-side grading. Pass an empty map
+	    to disable it (page then submits normally and waits for
+	    the server result screen).
+
+	Route expectations:
+	  GET  /student/quizzes/{id}        -> this page
+	  POST /student/quizzes/{id}/submit -> fields answer_<questionID> = A|B|C|D
+	=====================================================================
+*/}}
+
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<link rel="stylesheet" href="/static/css/quiz-take.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Quiz</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        {{ if not .Quiz.ID }}
+
+        <section class="dash-section">
+            <div class="empty-state">
+                <h3>Quiz not found</h3>
+                <p>This quiz may have been removed.</p>
+                <a href="/student/quizzes" class="dash-button">Back to quizzes</a>
+            </div>
+        </section>
+
+        {{ else if not .Questions }}
+
+        <section class="dash-section">
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                </span>
+                <h3>No questions yet</h3>
+                <p>Your teacher hasn't added questions to this quiz.</p>
+                <a href="/student/quizzes" class="dash-button">Back to quizzes</a>
+            </div>
+        </section>
+
+        {{ else }}
+
+        <!-- ====================================================
+             QUIZ VIEW (JS swaps this for the result view)
+             ==================================================== -->
+
+        <section id="quiz-view">
+
+            <header class="quiz-head fade-up">
+
+                <a href="/student/quizzes" class="dash-back-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+                    All quizzes
+                </a>
+
+                <div class="quiz-head-meta">
+
+                    <span class="quiz-tile-course">{{ .Quiz.CourseTitle }}</span>
+
+                    <h1 class="quiz-title">{{ .Quiz.Title }}</h1>
+
+                    {{ if .Quiz.Description }}
+                    <p class="quiz-desc">{{ .Quiz.Description }}</p>
+                    {{ end }}
+
+                </div>
+
+                <div class="quiz-progress-row">
+
+                    <p class="quiz-counter" aria-live="polite">
+                        Question <span id="quiz-current-index">1</span>
+                        of {{ len .Questions }}
+                    </p>
+
+                    <div class="quiz-progress-track" aria-hidden="true">
+                        <div class="quiz-progress-fill" id="quiz-progress-fill"></div>
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <form id="quiz-form"
+                  class="quiz-card"
+                  method="POST"
+                  action="/student/quizzes/{{ .Quiz.ID }}/submit">
+
+                {{ range $index, $question := .Questions }}
+
+                <fieldset class="quiz-question"
+                          data-qid="{{ $question.ID }}"
+                          data-correct="{{ index $.CorrectAnswers $question.ID }}"
+                          data-step="{{ $index }}">
+
+                    <legend class="quiz-question-text">
+                        <span class="quiz-question-num">{{ add $index 1 }}.</span>
+                        {{ $question.QuestionText }}
+                    </legend>
+
+                    <div class="quiz-options">
+
+                        <label class="quiz-option">
+                            <input type="radio" name="answer_{{ $question.ID }}" value="A" required>
+                            <span class="quiz-option-key" aria-hidden="true">A</span>
+                            <span class="quiz-option-text">{{ $question.OptionA }}</span>
+                        </label>
+
+                        <label class="quiz-option">
+                            <input type="radio" name="answer_{{ $question.ID }}" value="B" required>
+                            <span class="quiz-option-key" aria-hidden="true">B</span>
+                            <span class="quiz-option-text">{{ $question.OptionB }}</span>
+                        </label>
+
+                        <label class="quiz-option">
+                            <input type="radio" name="answer_{{ $question.ID }}" value="C" required>
+                            <span class="quiz-option-key" aria-hidden="true">C</span>
+                            <span class="quiz-option-text">{{ $question.OptionC }}</span>
+                        </label>
+
+                        <label class="quiz-option">
+                            <input type="radio" name="answer_{{ $question.ID }}" value="D" required>
+                            <span class="quiz-option-key" aria-hidden="true">D</span>
+                            <span class="quiz-option-text">{{ $question.OptionD }}</span>
+                        </label>
+
+                    </div>
+
+                </fieldset>
+
+                {{ end }}
+
+
+                <!-- Quiz footer navigation -->
+                <div class="quiz-nav">
+
+                    <button type="button" id="quiz-prev" class="quiz-nav-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+                        Previous
+                    </button>
+
+                    <div class="quiz-palette" id="quiz-palette" aria-label="Question navigator"></div>
+
+                    <button type="button" id="quiz-next" class="quiz-nav-btn quiz-nav-btn-primary">
+                        Next
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </button>
+
+                    <button type="submit" id="quiz-submit" class="quiz-submit-btn">
+                        Submit quiz
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+
+        <!-- ====================================================
+             RESULT VIEW (revealed after grading)
+             ==================================================== -->
+
+        <section id="result-view" class="result-view" hidden>
+
+            <div class="result-hero quiz-card">
+
+                <svg class="score-ring" viewBox="0 0 128 128" aria-hidden="true">
+                    <circle class="score-ring-bg" cx="64" cy="64" r="54"/>
+                    <circle class="score-ring-fill" id="score-ring-fill" cx="64" cy="64" r="54"/>
+                </svg>
+
+                <div class="score-center">
+                    <span class="score-value" id="score-value">0%</span>
+                    <span class="score-label">Your score</span>
+                </div>
+
+                <h2 class="result-heading" id="result-heading">Quiz complete!</h2>
+
+                <div class="result-chips">
+
+                    <span class="result-chip result-chip-good">
+                        <strong id="chip-correct">0</strong> correct
+                    </span>
+
+                    <span class="result-chip result-chip-low">
+                        <strong id="chip-wrong">0</strong> wrong
+                    </span>
+
+                    <span class="result-chip">
+                        <strong id="chip-skipped">0</strong> skipped
+                    </span>
+
+                </div>
+
+                <p class="save-status" id="save-status" aria-live="polite"></p>
+
+                <div class="result-actions">
+
+                    <a href="/student/results" class="dash-button">See all results</a>
+                    <button type="button" id="review-toggle" class="quiz-review-toggle" aria-expanded="false">
+                        Review answers
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- Per-question review -->
+            <ol class="review-list" id="review-list" hidden></ol>
+
+        </section>
+
+
+        <!-- Confirm submit modal -->
+        <div class="modal-overlay" id="submit-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+
+            <div class="modal-card">
+
+                <h3 class="modal-title" id="modal-title">Submit your quiz?</h3>
+
+                <p class="modal-text" id="modal-text">
+                    You're about to hand in your answers.
+                </p>
+
+                <div class="modal-actions">
+
+                    <button type="button" class="quiz-nav-btn" id="modal-cancel">Continue quiz</button>
+                    <button type="button" class="quiz-submit-btn" id="modal-confirm">Yes, submit</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {{ end }}
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+<noscript>
+    <style>
+        /* No-JS fallback: reveal every question in a plain scrollable form */
+        #quiz-form .quiz-question { display: block !important; }
+        #quiz-form .quiz-nav { display: none !important; }
+    </style>
+</noscript>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/quiz-take.js"></script>
+
+{{ end }}
