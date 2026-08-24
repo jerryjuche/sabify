@@ -1,0 +1,271 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Student Dashboard</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        <!-- Greeting -->
+        <section class="dash-hero fade-up">
+
+            <div class="dash-hero-text">
+
+                <p class="dash-eyebrow">
+                    <span class="dash-eyebrow-dot"></span>
+                    Learning Intelligence
+                </p>
+
+                <h1 class="dash-greeting">
+                    Welcome back,
+                    <span class="dash-greeting-name">{{ .User.Name }}</span>
+                </h1>
+
+                {{ if gt .Stats.QuizzesTaken 0 }}
+                <p class="dash-hero-sub">
+                    You have completed
+                    <strong>{{ .Stats.QuizzesTaken }}</strong> quiz{{ if ne .Stats.QuizzesTaken 1 }}zes{{ end }}
+                    so far — keep the streak going.
+                </p>
+                {{ else }}
+                <p class="dash-hero-sub">
+                    Your learning journey starts here.
+                    Explore your courses and take your first quiz.
+                </p>
+                {{ end }}
+
+            </div>
+
+            <div class="dash-hero-art" aria-hidden="true"></div>
+
+        </section>
+
+
+        <!-- Stats -->
+        <section class="dash-stats fade-up" aria-label="Your progress at a glance">
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-indigo" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.CoursesAvailable }}">0</span>
+                <span class="stat-label">Courses available</span>
+            </article>
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-violet" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.QuizzesTaken }}">0</span>
+                <span class="stat-label">Quizzes taken</span>
+            </article>
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-green" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.AverageScore }}" data-suffix="%">0%</span>
+                <span class="stat-label">Average score</span>
+            </article>
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-amber" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-2 7 5.5-3 5.5 3-2-7"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.BestScore }}" data-suffix="%">0%</span>
+                <span class="stat-label">Best score</span>
+            </article>
+
+        </section>
+
+
+        <!-- Continue learning -->
+        {{ if .UpcomingQuizzes }}
+        <section class="dash-section fade-up">
+
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Continue learning</h2>
+                    <p class="dash-section-sub">Quizzes you haven't attempted yet</p>
+                </div>
+                <a href="/student/quizzes" class="dash-link">
+                    View all quizzes
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+
+            <div class="quiz-grid">
+
+                {{ range .UpcomingQuizzes }}
+                <a href="/student/quizzes" class="quiz-tile">
+
+                    <span class="quiz-tile-course">{{ .CourseTitle }}</span>
+
+                    <h3 class="quiz-tile-title">{{ .Title }}</h3>
+
+                    <span class="quiz-tile-meta">
+                        {{ .QuestionCount }} question{{ if ne .QuestionCount 1 }}s{{ end }}
+                    </span>
+
+                    <span class="quiz-tile-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                    </span>
+
+                </a>
+                {{ end }}
+
+            </div>
+
+        </section>
+        {{ end }}
+
+
+        <!-- Courses -->
+        <section class="dash-section fade-up">
+
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">My Courses</h2>
+                    <p class="dash-section-sub">Everything you can learn right now</p>
+                </div>
+            </div>
+
+            {{ if .Courses }}
+
+            <div class="course-grid">
+
+                {{ range .Courses }}
+                <a href="/student/courses/{{ .ID }}" class="course-card">
+
+                    <span class="course-card-band" aria-hidden="true"></span>
+
+                    <div class="course-card-body">
+
+                        <h3 class="course-card-title">{{ .Title }}</h3>
+
+                        {{ if .Description }}
+                        <p class="course-card-desc">{{ .Description }}</p>
+                        {{ end }}
+
+                    </div>
+
+                    <div class="course-card-foot">
+
+                        <span class="course-card-teacher">
+                            <span class="dash-avatar dash-avatar-sm" aria-hidden="true">{{ initials .TeacherName }}</span>
+                            {{ .TeacherName }}
+                        </span>
+
+                        <span class="course-card-badge">
+                            {{ .QuizCount }} quiz{{ if ne .QuizCount 1 }}zes{{ end }}
+                        </span>
+
+                    </div>
+
+                </a>
+                {{ end }}
+
+            </div>
+
+            {{ else }}
+
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>
+                </span>
+                <h3>No courses yet</h3>
+                <p>Your teachers haven't published any courses.<br>Check back soon!</p>
+            </div>
+
+            {{ end }}
+
+        </section>
+
+
+        <!-- Recent activity -->
+        {{ if .Submissions }}
+        <section class="dash-section fade-up">
+
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Recent activity</h2>
+                    <p class="dash-section-sub">Your latest quiz submissions</p>
+                </div>
+                <a href="/student/results" class="dash-link">
+                    All results
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+
+            <ol class="activity-list">
+
+                {{ range .Submissions }}
+                <li class="activity-item">
+
+                    <span class="activity-score {{ if ge .Percent 70 }}is-good{{ else }}is-low{{ end }}">
+                        {{ if ge .Percent 0 }}{{ .Percent }}%{{ else }}—{{ end }}
+                    </span>
+
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .QuizTitle }}</span>
+                        <span class="activity-meta">{{ shortDate .SubmittedAt }}</span>
+                    </span>
+
+                    <svg class="activity-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+
+                </li>
+                {{ end }}
+
+            </ol>
+
+        </section>
+        {{ end }}
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+
+{{ end }}

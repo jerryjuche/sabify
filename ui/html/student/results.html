@@ -1,0 +1,144 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">My Results</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        <section class="dash-hero dash-hero-compact fade-up">
+
+            <h1 class="dash-greeting">My Results</h1>
+
+            {{ if gt .Stats.QuizzesTaken 0 }}
+            <p class="dash-hero-sub">
+                You've completed <strong>{{ .Stats.QuizzesTaken }}</strong> quiz{{ if ne .Stats.QuizzesTaken 1 }}zes{{ end }}
+                with an average of <strong>{{ .Stats.AverageScore }}%</strong>.
+            </p>
+            {{ else }}
+            <p class="dash-hero-sub">Take your first quiz and your results will appear here.</p>
+            {{ end }}
+
+        </section>
+
+
+        {{ if gt .Stats.QuizzesTaken 0 }}
+        <section class="dash-stats fade-up" aria-label="Result summary">
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-violet" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.QuizzesTaken }}">0</span>
+                <span class="stat-label">Quizzes taken</span>
+            </article>
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-green" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.AverageScore }}" data-suffix="%">0%</span>
+                <span class="stat-label">Average score</span>
+            </article>
+
+            <article class="stat-card">
+                <span class="stat-icon stat-icon-amber" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-2 7 5.5-3 5.5 3-2-7"/></svg>
+                </span>
+                <span class="stat-value" data-countup="{{ .Stats.BestScore }}" data-suffix="%">0%</span>
+                <span class="stat-label">Best score</span>
+            </article>
+
+        </section>
+        {{ end }}
+
+
+        <section class="dash-section fade-up">
+
+            {{ if .Submissions }}
+
+            <ol class="activity-list activity-list-lg">
+
+                {{ range .Submissions }}
+                <li class="activity-item">
+
+                    <span class="activity-score {{ if ge .Percent 70 }}is-good{{ else }}is-low{{ end }}">
+                        {{ if ge .Percent 0 }}{{ .Percent }}%{{ else }}—{{ end }}
+                    </span>
+
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .QuizTitle }}</span>
+                        <span class="activity-meta">
+                            {{ shortDate .SubmittedAt }} ·
+                            {{ .Score }} / {{ .TotalQuestions }} correct
+                        </span>
+                    </span>
+
+                </li>
+                {{ end }}
+
+            </ol>
+
+            {{ else }}
+
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+                </span>
+                <h3>No results yet</h3>
+                <p>Submit a quiz and your scores will land here.</p>
+                <a href="/student/quizzes" class="dash-button">Browse quizzes</a>
+            </div>
+
+            {{ end }}
+
+        </section>
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+
+{{ end }}

@@ -66,4 +66,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
 
+
+    /*
+     * Role links ("For Teachers" / "For Students")
+     * scroll to the experiences section and
+     * activate the matching tab on arrival.
+     */
+
+    const roleLinks =
+        document.querySelectorAll("[data-role-link]");
+
+    roleLinks.forEach((link) => {
+
+        link.addEventListener("click", () => {
+
+            const role =
+                link.dataset.roleLink;
+
+            const tab = document.querySelector(
+                `.intelligence-tab[data-role="${role}"]`
+            );
+
+            if (tab && !tab.classList.contains("active")) {
+                tab.click();
+            }
+
+        });
+
+    });
+
 });

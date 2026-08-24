@@ -133,3 +133,54 @@ func (m *QuizModel) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+/*
+ * QuizWithCourse pairs a quiz with its parent
+ * course title for student-facing listings.
+ */
+
+type QuizWithCourse struct {
+	Quiz
+	CourseTitle string
+	QuestionCount int
+}
+
+func (m *QuizModel) FindAllWithCourse(ctx context.Context) ([]QuizWithCourse, error) {
+	query := `
+		SELECT
+			q.id, q.course_id, q.title, q.description, q.created_at,
+			c.title AS course_title,
+			COUNT(qn.id) AS question_count
+		FROM quizzes q
+		INNER JOIN courses c ON c.id = q.course_id
+		LEFT JOIN questions qn ON qn.quiz_id = q.id
+		GROUP BY q.id, c.title
+		ORDER BY q.created_at DESC
+	`
+
+	rows, err := m.DB.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var quizzes []QuizWithCourse
+
+	for rows.Next() {
+		var q QuizWithCourse
+		if err := rows.Scan(
+			&q.ID, &q.CourseID, &q.Title,
+			&q.Description, &q.CreatedAt,
+			&q.CourseTitle, &q.QuestionCount,
+		); err != nil {
+			return nil, err
+		}
+		quizzes = append(quizzes, q)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return quizzes, nil
+}

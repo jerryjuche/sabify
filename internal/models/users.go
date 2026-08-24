@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -43,10 +44,29 @@ func (m *UserModel) Insert(ctx context.Context, user *User, password string) err
 		RETURNING id, created_at, updated_at
 	`
 
-	return m.DB.QueryRow(
+	err = m.DB.QueryRow(
 		ctx, query,
 		user.Name, user.Email, string(hash), user.Role,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+
+	if err != nil {
+
+		/*
+		 * A unique-constraint violation means the email
+		 * was taken between the Exists() pre-check and
+		 * this insert — surface it as a friendly error
+		 * instead of an internal server error.
+		 */
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrDuplicateEmail
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (m *UserModel) Authenticate(ctx context.Context, email, password string) (*User, error) {

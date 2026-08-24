@@ -176,27 +176,39 @@
         0 8px 25px rgba(15, 23, 42, 0.035);
 
     transition:
-        transform 250ms ease,
+        opacity 650ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 650ms cubic-bezier(0.22, 1, 0.36, 1),
+        filter 650ms ease,
         border-color 250ms ease,
         box-shadow 250ms ease;
+}
 
-    /* animation:
-        step-enter 700ms ease both; */
+/*
+ * Reveal choreography: cards stay hidden
+ * until the grid scrolls into view (only
+ * when JS is available — see base layout).
+ */
+
+.js .learning-loop-grid:not(.in-view) .learning-step {
     opacity: 0;
 
     transform:
-        translateY(20px);
+        translateY(30px)
+        scale(0.96);
 
-    transition:
-        opacity 700ms ease,
-        transform 700ms ease;
+    filter: blur(8px);
 }
 
-.learning-step.is-visible {
-    opacity: 1;
+/*
+ * Once revealed, switch back to snappy
+ * transitions so the hover lift feels instant.
+ */
 
-    transform:
-        translateY(0);
+.js .learning-loop-grid.in-view .learning-step {
+    transition:
+        transform 250ms ease,
+        border-color 250ms ease,
+        box-shadow 250ms ease;
 }
 
 .learning-step:hover {
@@ -221,35 +233,10 @@
     align-items: center;
 
     justify-content:
-        space-between;
+        flex-end;
 
     margin-bottom:
         35px;
-}
-
-.learning-step-number {
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    width: 32px;
-    height: 32px;
-
-    border-radius:
-        9px;
-
-    background:
-        rgba(99, 102, 241, 0.08);
-
-    color:
-        var(--color-primary);
-
-    font-size:
-        10px;
-
-    font-weight:
-        var(--font-bold);
 }
 
 .learning-step-icon {
@@ -273,6 +260,24 @@
 
     font-size:
         16px;
+
+    /*
+     * Icon pops in with a springy overshoot
+     * shortly after its card lands.
+     */
+
+    transition:
+        transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 280ms ease;
+
+    transition-delay:
+        calc(var(--stagger-index, 0) * 90ms + 240ms);
+}
+
+.js .learning-loop-grid:not(.in-view) .learning-step-icon {
+    transform: scale(0.3);
+
+    opacity: 0;
 }
 
 
@@ -332,16 +337,30 @@
         7px;
 
     background:
-        var(--color-background);
+        var(--color-primary-light);
 
     color:
-        var(--color-text-muted);
+        var(--color-primary);
 
     font-size:
         10px;
 
     font-weight:
-        var(--font-medium);
+        var(--font-semibold);
+}
+
+/*
+ * Chips naming an AI-driven capability carry the
+ * AI accent instead of the platform indigo, so the
+ * loop reads as human-led steps plus AI leverage.
+ */
+
+.learning-step-feature.ai {
+    background:
+        var(--color-ai-background);
+
+    color:
+        var(--color-ai-primary);
 }
 
 
@@ -365,26 +384,4 @@
 
     color:
         white;
-}
-
-
-/* ========================================
-   ANIMATION
-   ======================================== */
-
-@keyframes step-enter {
-
-    from {
-        opacity: 0;
-
-        transform:
-            translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-
-        transform:
-            translateY(0);
-    }
 }

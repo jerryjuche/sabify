@@ -141,7 +141,7 @@
 
 .intelligence-tab.active {
     color:
-        var(--color-text-primary);
+        var(--color-primary);
 
     background:
         white;

@@ -1,0 +1,125 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Quizzes</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        <section class="dash-hero dash-hero-compact fade-up">
+
+            <h1 class="dash-greeting">Available Quizzes</h1>
+
+            {{ if gt (len .Quizzes) 0 }}
+            <p class="dash-hero-sub">
+                {{ len .Quizzes }} quiz{{ if ne (len .Quizzes) 1 }}zes{{ end }} across your courses.
+                Attempted ones show your best score.
+            </p>
+            {{ else }}
+            <p class="dash-hero-sub">New quizzes will appear here as your teachers publish them.</p>
+            {{ end }}
+
+        </section>
+
+
+        <section class="dash-section fade-up">
+
+            {{ if .Quizzes }}
+
+            <ul class="row-list">
+
+                {{ range .Quizzes }}
+
+                {{ $best := index $.Attempted .ID }}
+
+                <li class="row-item">
+
+                    <span class="row-item-icon row-item-icon-violet" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                    </span>
+
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .Title }}</span>
+                        <span class="activity-meta">{{ .CourseTitle }} · {{ .QuestionCount }} question{{ if ne .QuestionCount 1 }}s{{ end }}</span>
+                    </span>
+
+                    {{ if ge $best 0 }}
+                    <span class="status-pill status-pill-good">Best {{ $best }}%</span>
+                    {{ else }}
+                    <span class="status-pill status-pill-new">Not attempted</span>
+                    {{ end }}
+
+                    <a href="/student/quizzes/{{ .ID }}" class="row-action"
+                       aria-label="Open quiz: {{ .Title }}">
+                        Open
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </a>
+
+                </li>
+
+                {{ end }}
+
+            </ul>
+
+            {{ else }}
+
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                </span>
+                <h3>No quizzes yet</h3>
+                <p>Once teachers publish quizzes, they'll show up here.</p>
+            </div>
+
+            {{ end }}
+
+        </section>
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+
+{{ end }}

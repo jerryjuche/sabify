@@ -1,0 +1,155 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Course</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        {{ if .Course }}
+
+        <section class="dash-hero dash-hero-compact fade-up">
+
+            <a href="/student/courses" class="dash-back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+                All courses
+            </a>
+
+            <h1 class="dash-greeting">{{ .Course.Title }}</h1>
+
+            <div class="chip-row">
+
+                <span class="meta-chip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-3.4 3.4-5 7-5s6.3 1.6 7 5"/></svg>
+                    {{ .Course.TeacherName }}
+                </span>
+
+                <span class="meta-chip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                    {{ .Course.QuizCount }} quiz{{ if ne .Course.QuizCount 1 }}zes{{ end }}
+                </span>
+
+            </div>
+
+            {{ if .Course.Description }}
+            <p class="dash-hero-sub">{{ .Course.Description }}</p>
+            {{ end }}
+
+        </section>
+
+
+        <section class="dash-section fade-up">
+
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Quizzes in this course</h2>
+                    <p class="dash-section-sub">Test your understanding as you go</p>
+                </div>
+                <a href="/student/quizzes" class="dash-link">All quizzes <span aria-hidden="true">→</span></a>
+            </div>
+
+            {{ if .CourseQuizzes }}
+
+            <ul class="row-list">
+
+                {{ range .CourseQuizzes }}
+
+                {{ $best := index $.Attempted .ID }}
+
+                <li class="row-item">
+
+                    <span class="row-item-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-5"/><circle cx="12" cy="12" r="9"/></svg>
+                    </span>
+
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .Title }}</span>
+                        {{ if .Description }}<span class="activity-meta">{{ .Description }}</span>{{ end }}
+                    </span>
+
+                    {{ if ge $best 0 }}
+                    <span class="status-pill status-pill-good">Best {{ $best }}%</span>
+                    {{ else }}
+                    <span class="status-pill">Not attempted</span>
+                    {{ end }}
+
+                </li>
+
+                {{ end }}
+
+            </ul>
+
+            {{ else }}
+
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
+                </span>
+                <h3>No quizzes yet</h3>
+                <p>Your teacher hasn't added quizzes to this course.</p>
+            </div>
+
+            {{ end }}
+
+        </section>
+
+        {{ else }}
+
+        <section class="dash-section fade-up">
+            <div class="empty-state">
+                <h3>Course not found</h3>
+                <p>This course may have been removed.</p>
+                <a href="/student/courses" class="dash-button">Back to my courses</a>
+            </div>
+        </section>
+
+        {{ end }}
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+
+{{ end }}

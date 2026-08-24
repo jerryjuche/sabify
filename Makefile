@@ -37,4 +37,4 @@ db_down:
 	docker compose down
 
 migrate:
-	psql -h localhost -p 5432 -U sabify -d sabify_db -f migrations/001_initial_schema.sql
+	psql -h localhost -p 5434 -U sabify -d sabify_db -f migrations/001_initial_schema.sql

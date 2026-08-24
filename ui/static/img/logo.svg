@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Learning Intelligence logo">
+  <defs>
+    <linearGradient id="li-logo-gradient" x1="10" y1="54" x2="54" y2="10" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rising spark -->
+  <path
+    d="M32 5 Q34.2 16.3 45.5 18.5 Q34.2 20.7 32 32 Q29.8 20.7 18.5 18.5 Q29.8 16.3 32 5 Z"
+    fill="url(#li-logo-gradient)"
+  />
+
+  <!-- Open book: left page -->
+  <path
+    d="M7 33.5 C11.8 34.5 17 35.5 21.6 37.2 C24 38.1 26.6 39.6 28 41.6 L28 55.4 C26.8 53.3 24.4 51.9 21.8 51.3 C17.2 50.3 12 49.4 7 48.3 Z"
+    fill="url(#li-logo-gradient)"
+  />
+
+  <!-- Open book: right page -->
+  <path
+    d="M57 33.5 C52.2 34.5 47 35.5 42.4 37.2 C40 38.1 37.4 39.6 36 41.6 L36 55.4 C37.2 53.3 39.6 51.9 42.2 51.3 C46.8 50.3 52 49.4 57 48.3 Z"
+    fill="url(#li-logo-gradient)"
+  />
+</svg>

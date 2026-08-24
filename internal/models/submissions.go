@@ -109,55 +109,54 @@ func (m *SubmissionModel) FindByQuiz(ctx context.Context, quizID string) ([]Subm
 	return submissions, nil
 }
 
-func (m *SubmissionModel) AverageScoreByTeacher(ctx context.Context, teacherID string) (float64, error) {
-	query := `
-		SELECT COALESCE(
-			ROUND(AVG(s.score::numeric / NULLIF(s.total_questions, 0) * 100), 1),
-			0
-		)
-		FROM submissions s
-		INNER JOIN quizzes q ON s.quiz_id = q.id
-		INNER JOIN courses c ON q.course_id = c.id
-		WHERE c.teacher_id = $1
-	`
+/*
+ * SubmissionWithQuiz pairs a submission with its
+ * quiz title for student-facing history views.
+ * Percent is derived (score/total*100, -1 when
+ * the total is unknown).
+ */
 
-	var avg float64
-	err := m.DB.QueryRow(ctx, query, teacherID).Scan(&avg)
-	return avg, err
+type SubmissionWithQuiz struct {
+	Submission
+	QuizTitle string
+	Percent   int
 }
 
-func (m *SubmissionModel) RecentByTeacher(ctx context.Context, teacherID string, limit int) ([]SubmissionWithDetails, error) {
+func (m *SubmissionModel) FindByStudentWithQuiz(ctx context.Context, studentID string) ([]SubmissionWithQuiz, error) {
 	query := `
 		SELECT
-			s.id, s.quiz_id, s.student_id, s.score, s.total_questions, s.submitted_at,
-			u.name AS student_name,
-			q.title AS quiz_title,
-			c.title AS course_title
+			s.id, s.quiz_id, s.student_id,
+			s.score, s.total_questions, s.submitted_at,
+			q.title AS quiz_title
 		FROM submissions s
-		INNER JOIN quizzes q ON s.quiz_id = q.id
-		INNER JOIN courses c ON q.course_id = c.id
-		INNER JOIN users u ON s.student_id = u.id
-		WHERE c.teacher_id = $1
+		INNER JOIN quizzes q ON q.id = s.quiz_id
+		WHERE s.student_id = $1
 		ORDER BY s.submitted_at DESC
-		LIMIT $2
 	`
 
-	rows, err := m.DB.Query(ctx, query, teacherID, limit)
+	rows, err := m.DB.Query(ctx, query, studentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var submissions []SubmissionWithDetails
+	var submissions []SubmissionWithQuiz
 
 	for rows.Next() {
-		var s SubmissionWithDetails
+		var s SubmissionWithQuiz
 		if err := rows.Scan(
-			&s.ID, &s.QuizID, &s.StudentID, &s.Score, &s.TotalQuestions, &s.SubmittedAt,
-			&s.StudentName, &s.QuizTitle, &s.CourseTitle,
+			&s.ID, &s.QuizID, &s.StudentID,
+			&s.Score, &s.TotalQuestions, &s.SubmittedAt,
+			&s.QuizTitle,
 		); err != nil {
 			return nil, err
 		}
+
+		s.Percent = -1
+		if s.TotalQuestions > 0 {
+			s.Percent = s.Score * 100 / s.TotalQuestions
+		}
+
 		submissions = append(submissions, s)
 	}
 
