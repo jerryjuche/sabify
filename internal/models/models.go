@@ -10,6 +10,7 @@ type Models struct {
 	Materials   MaterialModel
 	Submissions SubmissionModel
 	StudyGroups StudyGroupModel
+	Enrollments EnrollmentModel
 }
 
 func NewModels(db *pgxpool.Pool) Models {
@@ -21,5 +22,6 @@ func NewModels(db *pgxpool.Pool) Models {
 		Materials:   MaterialModel{DB: db},
 		Submissions: SubmissionModel{DB: db},
 		StudyGroups: StudyGroupModel{DB: db},
+		Enrollments: EnrollmentModel{DB: db},
 	}
 }

@@ -91,6 +91,33 @@ func (m *QuizModel) FindByCourse(ctx context.Context, courseID string) ([]Quiz, 
 	return quizzes, nil
 }
 
+func (m *QuizModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM quizzes q
+		INNER JOIN courses c ON q.course_id = c.id
+		WHERE c.teacher_id = $1
+	`
+
+	var count int
+	err := m.DB.QueryRow(ctx, query, teacherID).Scan(&count)
+	return count, err
+}
+
+func (m *QuizModel) CountActiveByTeacher(ctx context.Context, teacherID string) (int, error) {
+	query := `
+		SELECT COUNT(DISTINCT q.id)
+		FROM quizzes q
+		INNER JOIN courses c ON q.course_id = c.id
+		INNER JOIN submissions s ON s.quiz_id = q.id
+		WHERE c.teacher_id = $1
+	`
+
+	var count int
+	err := m.DB.QueryRow(ctx, query, teacherID).Scan(&count)
+	return count, err
+}
+
 func (m *QuizModel) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM quizzes WHERE id = $1`
 

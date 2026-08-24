@@ -139,6 +139,14 @@ func (m *CourseModel) Update(ctx context.Context, course *Course) error {
 	).Scan(&course.UpdatedAt)
 }
 
+func (m *CourseModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
+	query := `SELECT COUNT(*) FROM courses WHERE teacher_id = $1`
+
+	var count int
+	err := m.DB.QueryRow(ctx, query, teacherID).Scan(&count)
+	return count, err
+}
+
 func (m *CourseModel) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM courses WHERE id = $1`
 

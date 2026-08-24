@@ -165,6 +165,9 @@ var templateFuncs = template.FuncMap{
 	"add": func(a, b int) int {
 		return a + b
 	},
+	"multiply": func(a, b int) int {
+		return a * b
+	},
 	"initials": func(name string) string {
 		parts := strings.Fields(strings.TrimSpace(name))
 		if len(parts) == 0 {
@@ -209,6 +212,7 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	files = append(files, teacherFiles...)
 
 	for _, file := range files {
+		rel, err := filepath.Rel("./ui/html", file)
 
 		/*
 		 * Key templates by their path relative to
@@ -216,12 +220,10 @@ func newTemplateCache() (map[string]*template.Template, error) {
 		 * identically-named pages in different role
 		 * folders can never collide.
 		 */
-
-		name, err := filepath.Rel("./ui/html", file)
 		if err != nil {
 			return nil, err
 		}
-		name = filepath.ToSlash(name)
+		name := filepath.ToSlash(rel)
 
 		ts, err := template.New("base").Funcs(templateFuncs).ParseFiles("./ui/html/layouts/base.html")
 		if err != nil {

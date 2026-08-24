@@ -16,6 +16,13 @@ type Submission struct {
 	SubmittedAt    time.Time
 }
 
+type SubmissionWithDetails struct {
+	Submission
+	StudentName string
+	QuizTitle   string
+	CourseTitle string
+}
+
 type SubmissionModel struct {
 	DB *pgxpool.Pool
 }
@@ -150,6 +157,65 @@ func (m *SubmissionModel) FindByStudentWithQuiz(ctx context.Context, studentID s
 			s.Percent = s.Score * 100 / s.TotalQuestions
 		}
 
+		submissions = append(submissions, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
+}
+
+func (m *SubmissionModel) AverageScoreByTeacher(ctx context.Context, teacherID string) (float64, error) {
+	query := `
+		SELECT COALESCE(
+			ROUND(AVG(s.score::numeric / NULLIF(s.total_questions, 0) * 100), 1),
+			0
+		)
+		FROM submissions s
+		INNER JOIN quizzes q ON s.quiz_id = q.id
+		INNER JOIN courses c ON q.course_id = c.id
+		WHERE c.teacher_id = $1
+	`
+
+	var avg float64
+	err := m.DB.QueryRow(ctx, query, teacherID).Scan(&avg)
+	return avg, err
+}
+
+func (m *SubmissionModel) RecentByTeacher(ctx context.Context, teacherID string, limit int) ([]SubmissionWithDetails, error) {
+	query := `
+		SELECT
+			s.id, s.quiz_id, s.student_id, s.score, s.total_questions, s.submitted_at,
+			u.name AS student_name,
+			q.title AS quiz_title,
+			c.title AS course_title
+		FROM submissions s
+		INNER JOIN quizzes q ON s.quiz_id = q.id
+		INNER JOIN courses c ON q.course_id = c.id
+		INNER JOIN users u ON s.student_id = u.id
+		WHERE c.teacher_id = $1
+		ORDER BY s.submitted_at DESC
+		LIMIT $2
+	`
+
+	rows, err := m.DB.Query(ctx, query, teacherID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []SubmissionWithDetails
+
+	for rows.Next() {
+		var s SubmissionWithDetails
+		if err := rows.Scan(
+			&s.ID, &s.QuizID, &s.StudentID, &s.Score, &s.TotalQuestions, &s.SubmittedAt,
+			&s.StudentName, &s.QuizTitle, &s.CourseTitle,
+		); err != nil {
+			return nil, err
+		}
 		submissions = append(submissions, s)
 	}
 

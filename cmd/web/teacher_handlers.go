@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -8,9 +9,150 @@ import (
 	"sabify/internal/validator"
 )
 
+func (app *application) teacherDashboard(w http.ResponseWriter, r *http.Request) {
+	data := app.newTemplateData(r)
+	data.Title = "Dashboard"
+
+	teacherID := app.session.GetString(r.Context(), "authenticatedUserID")
+
+	teacher, err := app.models.Users.FindByID(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.TeacherName = teacher.Name
+
+	totalCourses, err := app.models.Courses.CountByTeacher(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.TotalCourses = totalCourses
+
+	totalStudents, err := app.models.Enrollments.CountByTeacher(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.TotalStudents = totalStudents
+
+	activeQuizzes, err := app.models.Quizzes.CountActiveByTeacher(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.ActiveQuizzes = activeQuizzes
+
+	avgScore, err := app.models.Submissions.AverageScoreByTeacher(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.AveragePerformance = avgScore
+
+	recentSubmissions, err := app.models.Submissions.RecentByTeacher(r.Context(), teacherID, 10)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.RecentSubmissions = recentSubmissions
+
+	attentionStudents, err := app.models.Enrollments.FindStudentsNeedingAttention(r.Context(), teacherID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	data.AttentionStudents = attentionStudents
+
+	data.AIInsights = app.generateInsights(totalCourses, totalStudents, activeQuizzes, avgScore, attentionStudents, recentSubmissions)
+
+	app.render(w, http.StatusOK, "dashboard.html", data)
+}
+
+func (app *application) generateInsights(totalCourses, totalStudents, activeQuizzes int, avgScore float64, attentionStudents []models.AttentionStudent, recentSubmissions []models.SubmissionWithDetails) []AIInsight {
+	var insights []AIInsight
+
+	if totalCourses == 0 {
+		insights = append(insights, AIInsight{
+			Type:    "info",
+			Title:   "Get started",
+			Message: "Create your first course to begin tracking student performance.",
+		})
+	}
+
+	if avgScore >= 75 {
+		insights = append(insights, AIInsight{
+			Type:    "strength",
+			Title:   "Strong class performance",
+			Message: fmt.Sprintf("Your classes are averaging %.1f%% — well above the 75%% benchmark.", avgScore),
+		})
+	} else if avgScore > 0 {
+		insights = append(insights, AIInsight{
+			Type:    "trend",
+			Title:   "Room for improvement",
+			Message: fmt.Sprintf("Your class average is %.1f%%. Consider revisiting topics where students scored lowest.", avgScore),
+		})
+	}
+
+	if len(attentionStudents) > 0 {
+		insights = append(insights, AIInsight{
+			Type:    "warning",
+			Title:   "Students need attention",
+			Message: fmt.Sprintf("%d student(s) are scoring below 50%%. A targeted review session may help.", len(attentionStudents)),
+		})
+	}
+
+	if activeQuizzes > 0 && len(recentSubmissions) == 0 {
+		insights = append(insights, AIInsight{
+			Type:    "info",
+			Title:   "No recent activity",
+			Message: "Your quizzes have no submissions yet. Students may need a reminder.",
+		})
+	}
+
+	if totalStudents > 0 && activeQuizzes == 0 {
+		insights = append(insights, AIInsight{
+			Type:    "info",
+			Title:   "Create assessments",
+			Message: fmt.Sprintf("You have %d enrolled student(s) but no quizzes yet. Create one to start assessing.", totalStudents),
+		})
+	}
+
+	return insights
+}
+
 func (app *application) teacherCourses(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Title = "My Courses"
+
+	// Populate teacher-specific stats shown on this view.
+	teacherID := app.session.GetString(r.Context(), "authenticatedUserID")
+	if teacherID != "" {
+		teacher, err := app.models.Users.FindByID(r.Context(), teacherID)
+		if err == nil {
+			data.TeacherName = teacher.Name
+		}
+
+		totalCourses, err := app.models.Courses.CountByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.TotalCourses = totalCourses
+		}
+
+		totalStudents, err := app.models.Enrollments.CountByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.TotalStudents = totalStudents
+		}
+
+		activeQuizzes, err := app.models.Quizzes.CountActiveByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.ActiveQuizzes = activeQuizzes
+		}
+
+		avgScore, err := app.models.Submissions.AverageScoreByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.AveragePerformance = avgScore
+		}
+	}
 
 	app.render(w, http.StatusOK, "teacher/courses.html", data)
 }

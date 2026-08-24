@@ -1,0 +1,176 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dashboard-page">
+
+    <div class="container">
+
+        {{ if .Flash }}
+        <div class="dashboard-flash">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+        <div class="dashboard-header">
+            <div>
+                <h1>Dashboard</h1>
+                <p class="text-muted">Welcome back, {{ .TeacherName }}</p>
+            </div>
+        </div>
+
+        <div class="dashboard-stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-card-icon stat-card-icon--courses">
+                    &#9632;
+                </div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ .TotalCourses }}</div>
+                    <div class="stat-card-label">Total Courses</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-icon stat-card-icon--students">
+                    &#9673;
+                </div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ .TotalStudents }}</div>
+                    <div class="stat-card-label">Total Students</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-icon stat-card-icon--quizzes">
+                    &#10003;
+                </div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ .ActiveQuizzes }}</div>
+                    <div class="stat-card-label">Active Quizzes</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-icon stat-card-icon--performance">
+                    &#8593;
+                </div>
+                <div class="stat-card-content">
+                    <div class="stat-card-value">{{ printf "%.1f" .AveragePerformance }}%</div>
+                    <div class="stat-card-label">Avg Performance</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="dashboard-grid">
+
+            <div class="dashboard-section">
+
+                <div class="section-card">
+
+                    <div class="section-card-header">
+                        <h3>Recent Submissions</h3>
+                        <a href="/teacher/submissions" class="section-card-link">View all</a>
+                    </div>
+
+                    {{ if .RecentSubmissions }}
+                    <div class="submissions-list">
+                        {{ range .RecentSubmissions }}
+                        <div class="submission-row">
+                            <div class="submission-info">
+                                <div class="submission-student">{{ .StudentName }}</div>
+                                <div class="submission-detail">{{ .QuizTitle }} &middot; {{ .CourseTitle }}</div>
+                            </div>
+                            <div class="submission-score">
+                                {{ $pct := multiply .Score .TotalQuestions }}
+                                <span class="score-badge {{ if ge $pct 75 }}score-badge--high{{ else if ge $pct 50 }}score-badge--mid{{ else }}score-badge--low{{ end }}">
+                                    {{ printf "%.0f" $pct }}%
+                                </span>
+                                <div class="submission-time">{{ .SubmittedAt.Format "Jan 2, 3:04 PM" }}</div>
+                            </div>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ else }}
+                    <div class="section-card-empty">
+                        <p>No submissions yet.</p>
+                    </div>
+                    {{ end }}
+
+                </div>
+
+            </div>
+
+            <div class="dashboard-section">
+
+                <div class="section-card">
+
+                    <div class="section-card-header">
+                        <h3>AI Insights</h3>
+                        <span class="ai-badge">&#10022; Data-driven</span>
+                    </div>
+
+                    {{ if .AIInsights }}
+                    <div class="insights-list">
+                        {{ range .AIInsights }}
+                        <div class="insight-row insight-row--{{ .Type }}">
+                            <div class="insight-icon">
+                                {{ if eq .Type "strength" }}&#9650;{{ else if eq .Type "warning" }}&#9888;{{ else if eq .Type "trend" }}&#8596;{{ else }}&#9432;{{ end }}
+                            </div>
+                            <div class="insight-content">
+                                <div class="insight-title">{{ .Title }}</div>
+                                <div class="insight-message">{{ .Message }}</div>
+                            </div>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ else }}
+                    <div class="section-card-empty">
+                        <p>No insights available yet. Add courses and students to generate insights.</p>
+                    </div>
+                    {{ end }}
+
+                </div>
+
+                <div class="section-card">
+
+                    <div class="section-card-header">
+                        <h3>Students Requiring Attention</h3>
+                    </div>
+
+                    {{ if .AttentionStudents }}
+                    <div class="attention-list">
+                        {{ range .AttentionStudents }}
+                        <div class="attention-row">
+                            <div class="attention-info">
+                                <div class="attention-name">{{ .StudentName }}</div>
+                                <div class="attention-detail">{{ .QuizCount }} quiz(es) taken</div>
+                            </div>
+                            <div class="attention-score">
+                                <span class="score-badge score-badge--low">
+                                    {{ printf "%.1f" .AvgScore }}%
+                                </span>
+                            </div>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ else }}
+                    <div class="section-card-empty">
+                        <p>No students currently requiring attention.</p>
+                    </div>
+                    {{ end }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{{ end }}
