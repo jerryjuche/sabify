@@ -8,7 +8,7 @@
     overflow: hidden;
 
     padding:
-        110px
+        64px
         0
         90px;
 
@@ -145,6 +145,19 @@
 
 .hero-title-highlight {
     display: block;
+
+    /*
+     * Extend the gradient paint area past the
+     * descender line (e.g. the "g" in
+     * "understanding") which falls outside it
+     * due to the tight line-height above.
+     * Inter's descent needs ~0.115em plus
+     * fractional-pixel rounding at large sizes.
+     */
+
+    padding-bottom: 0.22em;
+
+    margin-bottom: -0.22em;
 
     background:
         linear-gradient(

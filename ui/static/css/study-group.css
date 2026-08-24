@@ -544,6 +544,128 @@
 
 
 /* ========================================
+   MATCH REVEAL CHOREOGRAPHY
+   ======================================== */
+
+/*
+ * When the matching area scrolls into view:
+ * the two student cards slide in from the
+ * sides toward the center, the AI Match
+ * circle rolls in like a seal stamping a
+ * match, the connection line draws itself,
+ * and the compatibility badge pops last —
+ * finished off by two pulse rings.
+ *
+ * Hidden states only apply when JS is
+ * available (html.js) so content is never
+ * lost without JavaScript.
+ */
+
+.student-card {
+    transition:
+        transform 650ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 650ms ease;
+}
+
+.match-center {
+    transition:
+        transform 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 320ms;
+}
+
+.match-connection {
+    transition:
+        transform 550ms ease-out 500ms;
+}
+
+.compatibility {
+    transition:
+        transform 550ms cubic-bezier(0.34, 1.56, 0.64, 1) 850ms,
+        opacity 400ms ease 850ms;
+}
+
+
+/* Hidden state — before the section is reached */
+
+.js .matching-area:not(.in-view) .student-one {
+    transform: translateX(-70px);
+
+    opacity: 0;
+}
+
+.js .matching-area:not(.in-view) .student-two {
+    transform: translateX(70px);
+
+    opacity: 0;
+}
+
+.js .matching-area:not(.in-view) .match-center {
+    transform:
+        translate(-50%, -50%)
+        scale(0)
+        rotate(-220deg);
+}
+
+.js .matching-area:not(.in-view) .match-connection {
+    transform:
+        translate(-50%, -50%)
+        rotate(-30deg)
+        scaleX(0);
+}
+
+.js .matching-area:not(.in-view) .compatibility {
+    transform:
+        translateX(50%)
+        translateY(10px)
+        scale(0.6);
+
+    opacity: 0;
+}
+
+
+/*
+ * Match pulse: two expanding rings burst
+ * from the circle once everything meets.
+ */
+
+.match-center::after {
+    content: "";
+
+    position: absolute;
+
+    inset: -2px;
+
+    border-radius: 50%;
+
+    border: 2px solid rgba(99, 102, 241, 0.45);
+
+    opacity: 0;
+
+    pointer-events: none;
+}
+
+.js .matching-area.in-view .match-center::after {
+    animation:
+        match-burst 900ms ease-out 1050ms 2;
+}
+
+@keyframes match-burst {
+
+    0% {
+        opacity: 0.85;
+
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+
+        transform: scale(1.55);
+    }
+
+}
+
+
+/* ========================================
    CTA
    ======================================== */
 

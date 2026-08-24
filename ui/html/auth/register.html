@@ -46,6 +46,7 @@
                 <div class="field-group">
                     <label for="confirmPassword">Confirm Password</label>
                     <input type="password" id="confirmPassword" name="confirmPassword" placeholder="••••••••">
+                    {{ if index .FormErrors "confirmPassword" }}<span class="error-message">{{ index .FormErrors "confirmPassword" }}</span>{{ end }}
                 </div>
             </div>
 
@@ -54,6 +55,7 @@
                 <label for="policy">I agree to the Institutional Terms of Service, Academic Honor Code, Privacy
                     Policy.</label>
             </div>
+            {{ if index .FormErrors "policy" }}<span class="error-message">{{ index .FormErrors "policy" }}</span>{{ end }}
 
             <button type="submit">Create Account</button>
         </form>

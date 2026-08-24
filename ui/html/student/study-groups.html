@@ -1,0 +1,113 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Study Groups</p>
+
+        </header>
+
+
+        {{ if .Flash }}
+        <div class="dash-flash" role="status">
+            {{ .Flash }}
+        </div>
+        {{ end }}
+
+
+        <section class="dash-hero dash-hero-compact fade-up">
+
+            <h1 class="dash-greeting">Study Groups</h1>
+
+            <p class="dash-hero-sub">Learn together — groups are tied to your courses.</p>
+
+        </section>
+
+
+        <section class="dash-section fade-up">
+
+            {{ if .Groups }}
+
+            <div class="group-grid">
+
+                {{ range .Groups }}
+                <article class="group-card">
+
+                    <div class="group-card-head">
+
+                        <span class="group-avatar" aria-hidden="true">{{ initials .Name }}</span>
+
+                        {{ if .IsMember }}
+                        <span class="status-pill status-pill-good">Member</span>
+                        {{ else }}
+                        <span class="status-pill">{{ .MemberCount }} member{{ if ne .MemberCount 1 }}s{{ end }}</span>
+                        {{ end }}
+
+                    </div>
+
+                    <h3 class="group-card-title">{{ .Name }}</h3>
+
+                    {{ if .CourseTitle }}
+                    <span class="quiz-tile-course">{{ .CourseTitle }}</span>
+                    {{ else }}
+                    <span class="quiz-tile-course">General</span>
+                    {{ end }}
+
+                </article>
+                {{ end }}
+
+            </div>
+
+            {{ else }}
+
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5S13.9 16 14.5 19"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.4.2 4.1 1.5 4.7 4"/></svg>
+                </span>
+                <h3>No study groups yet</h3>
+                <p>When groups are created for your courses, they'll appear here.</p>
+            </div>
+
+            {{ end }}
+
+        </section>
+
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+
+{{ end }}

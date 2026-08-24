@@ -20,7 +20,7 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Title = "Home"
 
-	app.render(w, http.StatusOK, "index.html", data)
+	app.render(w, http.StatusOK, "pages/home/index.html", data)
 }
 
 func (app *application) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +41,19 @@ func (app *application) showRegisterForm(w http.ResponseWriter, r *http.Request)
 	data := app.newTemplateData(r)
 	data.Title = "Register"
 
-	app.render(w, http.StatusOK, "register.html", data)
+	app.render(w, http.StatusOK, "auth/register.html", data)
+}
+
+func (app *application) renderRegisterError(w http.ResponseWriter, r *http.Request, status int, name, email, role string, fieldErrors map[string]string) {
+	data := app.newTemplateData(r)
+	data.Title = "Register"
+	data.Form = map[string]string{
+		"name":  name,
+		"email": email,
+		"role":  role,
+	}
+	data.FormErrors = fieldErrors
+	app.render(w, status, "auth/register.html", data)
 }
 
 func (app *application) register(w http.ResponseWriter, r *http.Request) {
@@ -54,24 +66,20 @@ func (app *application) register(w http.ResponseWriter, r *http.Request) {
 	name := r.Form.Get("name")
 	email := r.Form.Get("email")
 	password := r.Form.Get("password")
+	confirmPassword := r.Form.Get("confirmPassword")
+	policy := r.Form.Get("policy")
 	role := r.Form.Get("role")
 
 	v := validator.New()
 	v.CheckField(validator.NotBlank(name), "name", "This field cannot be blank")
 	v.CheckField(validator.NotBlank(email), "email", "This field cannot be blank")
 	v.CheckField(validator.MinChars(password, 8), "password", "This field must be at least 8 characters long")
+	v.CheckField(password == confirmPassword, "confirmPassword", "Passwords do not match")
 	v.CheckField(validator.PermittedValue(role, "student", "teacher"), "role", "This field must be either student or teacher")
+	v.CheckField(validator.NotBlank(policy), "policy", "You must agree to the terms before creating an account")
 
 	if !v.Valid() {
-		data := app.newTemplateData(r)
-		data.Title = "Register"
-		data.Form = map[string]string{
-			"name":  name,
-			"email": email,
-			"role":  role,
-		}
-		data.FormErrors = v.GetFieldErrors()
-		app.render(w, http.StatusUnprocessableEntity, "register.html", data)
+		app.renderRegisterError(w, r, http.StatusUnprocessableEntity, name, email, role, v.GetFieldErrors())
 		return
 	}
 
@@ -82,15 +90,9 @@ func (app *application) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if exists {
-		data := app.newTemplateData(r)
-		data.Title = "Register"
-		data.Form = map[string]string{
-			"name":  name,
-			"email": email,
-			"role":  role,
-		}
-		data.FormErrors = map[string]string{"email": "An account with this email already exists"}
-		app.render(w, http.StatusUnprocessableEntity, "register.html", data)
+		app.renderRegisterError(w, r, http.StatusUnprocessableEntity, name, email, role, map[string]string{
+			"email": "An account with this email already exists",
+		})
 		return
 	}
 
@@ -102,6 +104,12 @@ func (app *application) register(w http.ResponseWriter, r *http.Request) {
 
 	err = app.models.Users.Insert(r.Context(), user, password)
 	if err != nil {
+		if errors.Is(err, models.ErrDuplicateEmail) {
+			app.renderRegisterError(w, r, http.StatusUnprocessableEntity, name, email, role, map[string]string{
+				"email": "An account with this email already exists",
+			})
+			return
+		}
 		app.serverError(w, err)
 		return
 	}
@@ -114,7 +122,7 @@ func (app *application) showLoginForm(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Title = "Login"
 
-	app.render(w, http.StatusOK, "login.html", data)
+	app.render(w, http.StatusOK, "auth/login.html", data)
 }
 
 func (app *application) login(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +144,7 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 		data.Title = "Login"
 		data.Form = map[string]string{"email": email}
 		data.FormErrors = v.GetFieldErrors()
-		app.render(w, http.StatusUnprocessableEntity, "login.html", data)
+		app.render(w, http.StatusUnprocessableEntity, "auth/login.html", data)
 		return
 	}
 
@@ -147,7 +155,7 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 			data.Title = "Login"
 			data.Form = map[string]string{"email": email}
 			data.FormErrors = map[string]string{"email": "Invalid email or password"}
-			app.render(w, http.StatusUnauthorized, "login.html", data)
+			app.render(w, http.StatusUnauthorized, "auth/login.html", data)
 		} else {
 			app.serverError(w, err)
 		}
@@ -180,6 +188,34 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+/*
+ * loadCurrentUser resolves the session's user ID into a
+ * full user record for authenticated pages. If the session
+ * is stale or the user no longer exists, the session is
+ * cleared and the visitor is sent back to the login page;
+ * the returned value is nil in that case and handlers must
+ * simply return after calling it.
+ */
+
+func (app *application) loadCurrentUser(w http.ResponseWriter, r *http.Request) *models.User {
+	userID := app.session.GetString(r.Context(), "authenticatedUserID")
+	if userID == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return nil
+	}
+
+	user, err := app.models.Users.FindByID(r.Context(), userID)
+	if err != nil {
+		app.session.Remove(r.Context(), "authenticatedUserID")
+		app.session.Remove(r.Context(), "userRole")
+		app.session.Put(r.Context(), "flash", "Please log in again.")
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return nil
+	}
+
+	return user
 }
 
 func (app *application) requireRole(role string) func(http.Handler) http.Handler {

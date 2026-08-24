@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"sabify/internal/models"
+
+	"sabify/internal/models"
 )
 
 type AIInsight struct {
@@ -32,6 +34,77 @@ type templateData struct {
 	AIInsights         []AIInsight
 	AttentionStudents  []models.AttentionStudent
 	TeacherName        string
+
+	/*
+	 * Authenticated-shell context.
+	 */
+
+	User        *models.User
+	CurrentPage string
+
+	/*
+	 * Dashboard payloads.
+	 */
+
+	Courses         []models.CourseWithTeacher
+	Course          *models.CourseWithTeacher
+	CourseQuizzes   []models.Quiz
+	Quizzes         []models.QuizWithCourse
+	UpcomingQuizzes []models.QuizWithCourse
+	Submissions     []models.SubmissionWithQuiz
+	Groups          []models.StudyGroupWithMeta
+	Stats           StudentStats
+
+	/*
+	 * QuizID -> best score percentage achieved
+	 * by the current student, used to badge
+	 * quiz listings with attempt state.
+	 */
+
+	Attempted map[string]int
+}
+
+/*
+ * StudentStats summarises a student's quiz history
+ * for the dashboard stat cards. All scores are
+ * percentages.
+ */
+
+type StudentStats struct {
+	CoursesAvailable int
+	QuizzesTaken     int
+	AverageScore     int
+	BestScore        int
+}
+
+func computeStudentStats(submissions []models.SubmissionWithQuiz, coursesAvailable int) StudentStats {
+	stats := StudentStats{
+		CoursesAvailable: coursesAvailable,
+		QuizzesTaken:     len(submissions),
+	}
+
+	total := 0
+	counted := 0
+
+	for _, s := range submissions {
+		if s.TotalQuestions <= 0 {
+			continue
+		}
+
+		pct := s.Score * 100 / s.TotalQuestions
+		total += pct
+		counted++
+
+		if pct > stats.BestScore {
+			stats.BestScore = pct
+		}
+	}
+
+	if counted > 0 {
+		stats.AverageScore = total / counted
+	}
+
+	return stats
 }
 
 func (app *application) serverError(w http.ResponseWriter, err error) {

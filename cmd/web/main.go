@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -156,9 +157,34 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+/*
+ * Template helpers available inside every template.
+ */
+
+var templateFuncs = template.FuncMap{
+	"add": func(a, b int) int {
+		return a + b
+	},
+	"initials": func(name string) string {
+		parts := strings.Fields(strings.TrimSpace(name))
+		if len(parts) == 0 {
+			return "?"
+		}
+		first := strings.ToUpper(parts[0][:1])
+		if len(parts) > 1 {
+			return first + strings.ToUpper(parts[len(parts)-1][:1])
+		}
+		return first
+	},
+	"shortDate": func(t time.Time) string {
+		return t.Format("Jan 2")
+	},
+}
+
 func newTemplateCache() (map[string]*template.Template, error) {
 	cache := map[string]*template.Template{}
 
+<<<<<<< HEAD
 	funcMap := template.FuncMap{
 		"multiply": func(a, b int) float64 {
 			if b == 0 {
@@ -169,6 +195,9 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	}
 
 	pageFiles, err := filepath.Glob("./ui/html/pages/*/*.html")
+=======
+	pages, err := filepath.Glob("./ui/html/pages/*/*.html")
+>>>>>>> main
 	if err != nil {
 		return nil, err
 	}
@@ -178,11 +207,24 @@ func newTemplateCache() (map[string]*template.Template, error) {
 		return nil, err
 	}
 
-	files := append(pageFiles, authFiles...)
+	studentFiles, err := filepath.Glob("./ui/html/student/*.html")
+	if err != nil {
+		return nil, err
+	}
+
+	teacherFiles, err := filepath.Glob("./ui/html/teacher/*.html")
+	if err != nil {
+		return nil, err
+	}
+
+	files := append(pages, authFiles...)
+	files = append(files, studentFiles...)
+	files = append(files, teacherFiles...)
 
 	for _, file := range files {
 		name := filepath.Base(file)
 
+		ts, err := template.New("base").Funcs(templateFuncs).ParseFiles("./ui/html/layouts/base.html")
 		ts, err := template.New("base").Funcs(funcMap).ParseFiles("./ui/html/layouts/base.html")
 		if err != nil {
 			return nil, err

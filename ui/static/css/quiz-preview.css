@@ -619,13 +619,24 @@
         5px;
 
     background:
-        #f8fafc;
+        var(--color-primary-light);
 
     font-size:
         10px;
 
+    font-weight:
+        var(--font-semibold);
+
     color:
-        var(--color-text-muted);
+        var(--color-primary);
+}
+
+.question-tag.difficulty-medium {
+    background:
+        rgba(245, 158, 11, 0.08);
+
+    color:
+        #b45309;
 }
 
 .question-text {

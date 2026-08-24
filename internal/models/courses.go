@@ -162,3 +162,87 @@ func (m *CourseModel) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+/*
+ * CourseWithTeacher pairs a course with its teacher's
+ * name and a quiz count — everything a student-facing
+ * course card needs in a single round trip.
+ */
+
+type CourseWithTeacher struct {
+	Course
+	TeacherName string
+	QuizCount   int
+}
+
+func (m *CourseModel) FindByIDWithTeacher(ctx context.Context, id string) (*CourseWithTeacher, error) {
+	var c CourseWithTeacher
+
+	query := `
+		SELECT
+			c.id, c.title, c.description, c.teacher_id,
+			c.created_at, c.updated_at,
+			u.name AS teacher_name,
+			COUNT(q.id) AS quiz_count
+		FROM courses c
+		INNER JOIN users u ON u.id = c.teacher_id
+		LEFT JOIN quizzes q ON q.course_id = c.id
+		WHERE c.id = $1
+		GROUP BY c.id, u.name
+	`
+
+	err := m.DB.QueryRow(ctx, query, id).Scan(
+		&c.ID, &c.Title, &c.Description, &c.TeacherID,
+		&c.CreatedAt, &c.UpdatedAt,
+		&c.TeacherName, &c.QuizCount,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNoRecord
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+func (m *CourseModel) FindAllWithTeacher(ctx context.Context) ([]CourseWithTeacher, error) {
+	query := `
+		SELECT
+			c.id, c.title, c.description, c.teacher_id,
+			c.created_at, c.updated_at,
+			u.name AS teacher_name,
+			COUNT(q.id) AS quiz_count
+		FROM courses c
+		INNER JOIN users u ON u.id = c.teacher_id
+		LEFT JOIN quizzes q ON q.course_id = c.id
+		GROUP BY c.id, u.name
+		ORDER BY c.created_at DESC
+	`
+
+	rows, err := m.DB.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var courses []CourseWithTeacher
+
+	for rows.Next() {
+		var c CourseWithTeacher
+		if err := rows.Scan(
+			&c.ID, &c.Title, &c.Description, &c.TeacherID,
+			&c.CreatedAt, &c.UpdatedAt,
+			&c.TeacherName, &c.QuizCount,
+		); err != nil {
+			return nil, err
+		}
+		courses = append(courses, c)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return courses, nil
+}
