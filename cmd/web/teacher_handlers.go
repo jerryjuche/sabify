@@ -66,7 +66,7 @@ func (app *application) teacherDashboard(w http.ResponseWriter, r *http.Request)
 
 	data.AIInsights = app.generateInsights(totalCourses, totalStudents, activeQuizzes, avgScore, attentionStudents, recentSubmissions)
 
-	app.render(w, http.StatusOK, "teacher-dashboard.html", data)
+	app.render(w, http.StatusOK, "dashboard.html", data)
 }
 
 func (app *application) generateInsights(totalCourses, totalStudents, activeQuizzes int, avgScore float64, attentionStudents []models.AttentionStudent, recentSubmissions []models.SubmissionWithDetails) []AIInsight {
@@ -124,6 +124,35 @@ func (app *application) generateInsights(totalCourses, totalStudents, activeQuiz
 func (app *application) teacherCourses(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Title = "My Courses"
+
+	// Populate teacher-specific stats shown on this view.
+	teacherID := app.session.GetString(r.Context(), "authenticatedUserID")
+	if teacherID != "" {
+		teacher, err := app.models.Users.FindByID(r.Context(), teacherID)
+		if err == nil {
+			data.TeacherName = teacher.Name
+		}
+
+		totalCourses, err := app.models.Courses.CountByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.TotalCourses = totalCourses
+		}
+
+		totalStudents, err := app.models.Enrollments.CountByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.TotalStudents = totalStudents
+		}
+
+		activeQuizzes, err := app.models.Quizzes.CountActiveByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.ActiveQuizzes = activeQuizzes
+		}
+
+		avgScore, err := app.models.Submissions.AverageScoreByTeacher(r.Context(), teacherID)
+		if err == nil {
+			data.AveragePerformance = avgScore
+		}
+	}
 
 	app.render(w, http.StatusOK, "teacher/courses.html", data)
 }

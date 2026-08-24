@@ -40,7 +40,8 @@ func (app *application) routes() http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(app.authenticate)
 		r.Use(app.requireRole("teacher"))
-		r.Get("/teacher/dashboard", app.teacherDashboard)
+		// r.Get("/teacher/dashboard", app.teacherDashboard)
+		// r.Get("/teacher/courses", app.teacherDashboard)
 		r.Get("/teacher/courses", app.teacherCourses)
 		r.Post("/teacher/courses", app.createCourse)
 		r.Get("/teacher/courses/{id}", app.teacherCourseDetail)

@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"sabify/internal/models"
-
-	"sabify/internal/models"
 )
 
 type AIInsight struct {
@@ -142,8 +140,25 @@ func (app *application) render(w http.ResponseWriter, status int, page string, d
 }
 
 func (app *application) newTemplateData(r *http.Request) templateData {
-	return templateData{
+	td := templateData{
 		CurrentYear: time.Now().Year(),
 		Flash:       app.session.PopString(r.Context(), "flash"),
 	}
+
+	if r == nil {
+		return td
+	}
+
+	// If a user is authenticated, attempt to load their record for templates.
+	userID := app.session.GetString(r.Context(), "authenticatedUserID")
+	if userID != "" {
+		user, err := app.models.Users.FindByID(r.Context(), userID)
+		if err == nil {
+			td.User = user
+		} else {
+			app.logger.Error("failed to load current user for template", "error", err)
+		}
+	}
+
+	return td
 }
