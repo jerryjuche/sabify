@@ -213,6 +213,13 @@ func newTemplateCache() (map[string]*template.Template, error) {
 
 	for _, file := range files {
 		rel, err := filepath.Rel("./ui/html", file)
+
+		/*
+		 * Key templates by their path relative to
+		 * ui/html (e.g. "student/courses.html") so
+		 * identically-named pages in different role
+		 * folders can never collide.
+		 */
 		if err != nil {
 			return nil, err
 		}
