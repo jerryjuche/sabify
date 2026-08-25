@@ -238,7 +238,7 @@ func (app *application) dashboard(w http.ResponseWriter, r *http.Request) {
 
 	switch userRole {
 	case "teacher":
-		http.Redirect(w, r, "/teacher/courses", http.StatusSeeOther)
+		http.Redirect(w, r, "/teacher/dashboard", http.StatusSeeOther)
 	case "student":
 		http.Redirect(w, r, "/student/courses", http.StatusSeeOther)
 	default:

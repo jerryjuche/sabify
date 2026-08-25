@@ -1,0 +1,49 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+    {{ template "sidebar" . }}
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+    <main class="dash-main">
+        <header class="dash-topbar">
+            <button class="dash-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false"
+                aria-controls="dash-sidebar"><span></span><span></span><span></span></button>
+            <p class="dash-topbar-title">Create Course</p>
+        </header>
+        <section class="dash-hero dash-hero-compact fade-up">
+            <div>
+                <p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Teach</p>
+                <h1 class="dash-greeting">Create a course</h1>
+                <p class="dash-hero-sub">Give your students a clear place to learn, practice, and grow.</p>
+            </div>
+        </section>
+        <section class="dash-section fade-up">
+            <div class="section-card">
+                <div class="section-card-header">
+                    <h2>Create course details</h2>
+                </div>
+                <form action="/teacher/courses" method="post" class="teacher-form">
+                    <div class="field-group"><label for="title">Course title</label><input id="title" name="title"
+                            type="text" value="{{ .Form.title }}" placeholder="e.g. Introduction to Biology" required>{{
+                        if index .FormErrors "title" }}<span class="error-message">{{ index .FormErrors "title"
+                            }}</span>{{ end }}</div>
+                    <div class="field-group"><label for="description">Description</label><textarea id="description"
+                            name="description" rows="5"
+                            placeholder="What will students learn?">{{ .Form.description }}</textarea>{{ if index
+                        .FormErrors "description" }}<span class="error-message">{{ index .FormErrors "description"
+                            }}</span>{{ end }}</div>
+                    <div class="teacher-form-actions"><a href="/teacher/courses" class="dash-link">Cancel</a><button
+                            class="dash-button" type="submit">Create course</button></div>
+                </form>
+            </div>
+        </section>
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+    </main>
+</div>
+{{ end }}
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>{{ end }}

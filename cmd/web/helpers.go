@@ -45,7 +45,10 @@ type templateData struct {
 	 */
 
 	Courses         []models.CourseWithTeacher
+	TeacherCourses  []models.Course
 	Course          *models.CourseWithTeacher
+	Quiz            *models.Quiz
+	Questions       []models.Question
 	CourseQuizzes   []models.Quiz
 	Quizzes         []models.QuizWithCourse
 	UpcomingQuizzes []models.QuizWithCourse

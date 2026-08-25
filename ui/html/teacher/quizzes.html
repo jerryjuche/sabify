@@ -1,0 +1,88 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+    {{ template "sidebar" . }}
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+    <main class="dash-main">
+        <header class="dash-topbar">
+            <button class="dash-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false"
+                aria-controls="dash-sidebar">
+                <span></span><span></span><span></span>
+            </button>
+            <p class="dash-topbar-title">My Quizzes</p>
+        </header>
+
+        {{ if .Flash }}<div class="dash-flash" role="status">{{ .Flash }}</div>{{ end }}
+
+        <section class="dash-hero dash-hero-compact fade-up">
+            <div>
+                <p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Assess</p>
+                <h1 class="dash-greeting">Your quizzes</h1>
+                <p class="dash-hero-sub">Create assessments for the courses you teach and follow student progress.</p>
+            </div>
+            <a href="/teacher/quizzes/new" class="dash-button">Create quiz</a>
+        </section>
+
+        <section class="dash-section fade-up">
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Published quizzes</h2>
+                    <p class="dash-section-sub">{{ len .Quizzes }} quiz{{ if ne (len .Quizzes) 1 }}zes{{ end }} across
+                        your courses</p>
+                </div>
+            </div>
+
+            {{ if .Quizzes }}
+            <ul class="row-list">
+                {{ range .Quizzes }}
+                <li class="row-item">
+                    <span class="row-item-icon row-item-icon-violet" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8" />
+                            <circle cx="12" cy="17" r="0.4" fill="currentColor" />
+                        </svg>
+                    </span>
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .Title }}</span>
+                        <span class="activity-meta">{{ .CourseTitle }} · {{ .QuestionCount }} question{{ if ne
+                            .QuestionCount 1 }}s{{ end }}</span>
+                    </span>
+                    <span class="activity-meta">Created {{ shortDate .CreatedAt }}</span>
+                    <a href="/teacher/quizzes/{{ .ID }}/edit" class="dash-link">Edit</a>
+                    <form action="/teacher/quizzes/{{ .ID }}/delete" method="post" class="inline-form">
+                        <button type="submit" class="text-danger"
+                            onclick="return confirm('Delete this quiz and its questions?');">Delete</button>
+                    </form>
+                </li>
+                {{ end }}
+            </ul>
+            {{ else }}
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8" />
+                        <circle cx="12" cy="17" r="0.4" fill="currentColor" />
+                    </svg></span>
+                <h3>No quizzes yet</h3>
+                <p>Create your first quiz to start checking student understanding.</p>
+                <a href="/teacher/quizzes/new" class="dash-button">Create your first quiz</a>
+            </div>
+            {{ end }}
+        </section>
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+    </main>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>
+{{ end }}

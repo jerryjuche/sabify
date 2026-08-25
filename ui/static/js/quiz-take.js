@@ -265,9 +265,9 @@ document.addEventListener("DOMContentLoaded", () => {
             unanswered > 0
 
                 ? "You have <strong>" + unanswered +
-                  "</strong> unanswered question" +
-                  (unanswered === 1 ? "" : "s") +
-                  ". They will be marked as skipped."
+                "</strong> unanswered question" +
+                (unanswered === 1 ? "" : "s") +
+                ". They will be marked as skipped."
 
                 : "All questions answered. Ready to hand it in?";
 
