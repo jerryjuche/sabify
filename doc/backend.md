@@ -140,7 +140,8 @@ internal/database/migrations/
 Run:
 
 ```bash
-docker exec -i sabify-postgres psql -U sabify -d sabify_db < internal/database/migrations/001_initial_schema.sql
+docker exec -i sabify-postgres psql -U sabify -d sabify_db < migrations/001_initial_schema.sql
+docker exec -i sabify-postgres psql -U sabify -d sabify_db < migrations/002_course_enrollments.sql
 ```
 
 Verify:

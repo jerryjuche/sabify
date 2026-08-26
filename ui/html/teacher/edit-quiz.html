@@ -1,0 +1,124 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+    {{ template "sidebar" . }}
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+    <main class="dash-main">
+        <header class="dash-topbar"><button class="dash-menu-button" type="button" aria-label="Open navigation menu"
+                aria-expanded="false" aria-controls="dash-sidebar"><span></span><span></span><span></span></button>
+            <p class="dash-topbar-title">Edit Quiz</p>
+        </header>
+        <section class="dash-hero dash-hero-compact fade-up">
+            <div>
+                <p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Assess</p>
+                <h1 class="dash-greeting">Edit quiz</h1>
+                <p class="dash-hero-sub">Update the quiz details and questions.</p>
+            </div>
+        </section>
+        <section class="dash-section fade-up">
+            <div class="section-card">
+                <div class="section-card-header">
+                    <h2>Quiz details</h2>
+                </div>
+                <form action="/teacher/quizzes/{{ .Quiz.ID }}/edit" method="post" class="teacher-form">
+                    <div class="field-group"><label for="title">Quiz title</label><input id="title" name="title"
+                            type="text" value="{{ .Form.title }}" required>{{ if index .FormErrors "title" }}<span
+                            class="error-message">{{ index .FormErrors "title" }}</span>{{ end }}</div>
+                    <div class="field-group"><label for="description">Description</label><textarea id="description"
+                            name="description" rows="5">{{ .Form.description }}</textarea></div>
+                    <div class="question-builder" id="question-builder">
+                        <div class="question-builder-head">
+                            <div>
+                                <h3>Quiz questions</h3>
+                                <p>Update the question, options, or correct answer.</p>
+                            </div><button class="dash-link question-add-button" type="button" id="add-question">Add
+                                question</button>
+                        </div>
+                        {{ range $index, $question := .Questions }}
+                        <div class="question-block" data-question-index="{{ $index }}">
+                            <div class="question-block-head">
+                                <h4>Question {{ add $index 1 }}</h4><button class="question-remove" type="button"
+                                    aria-label="Remove question {{ add $index 1 }}">Remove</button>
+                            </div>
+                            <div class="field-group"><label for="question_text_{{ $index }}">Question</label><textarea
+                                    id="question_text_{{ $index }}" name="question_text_{{ $index }}" rows="3"
+                                    required>{{ $question.QuestionText }}</textarea></div>
+                            <div class="question-options-grid">
+                                <div class="field-group"><label for="option_a_{{ $index }}">Option A</label><input
+                                        id="option_a_{{ $index }}" name="option_a_{{ $index }}" type="text"
+                                        value="{{ $question.OptionA }}" required></div>
+                                <div class="field-group"><label for="option_b_{{ $index }}">Option B</label><input
+                                        id="option_b_{{ $index }}" name="option_b_{{ $index }}" type="text"
+                                        value="{{ $question.OptionB }}" required></div>
+                                <div class="field-group"><label for="option_c_{{ $index }}">Option C</label><input
+                                        id="option_c_{{ $index }}" name="option_c_{{ $index }}" type="text"
+                                        value="{{ $question.OptionC }}" required></div>
+                                <div class="field-group"><label for="option_d_{{ $index }}">Option D</label><input
+                                        id="option_d_{{ $index }}" name="option_d_{{ $index }}" type="text"
+                                        value="{{ $question.OptionD }}" required></div>
+                            </div>
+                            <div class="field-group"><label for="correct_answer_{{ $index }}">Correct
+                                    answer</label><select id="correct_answer_{{ $index }}"
+                                    name="correct_answer_{{ $index }}" required>
+                                    <option value="">Choose the correct option</option>
+                                    <option value="A" {{ if eq $question.CorrectAnswer "A" }}selected{{ end }}>Option A
+                                    </option>
+                                    <option value="B" {{ if eq $question.CorrectAnswer "B" }}selected{{ end }}>Option B
+                                    </option>
+                                    <option value="C" {{ if eq $question.CorrectAnswer "C" }}selected{{ end }}>Option C
+                                    </option>
+                                    <option value="D" {{ if eq $question.CorrectAnswer "D" }}selected{{ end }}>Option D
+                                    </option>
+                                </select></div>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ if index .FormErrors "questions" }}<span class="error-message">{{ index .FormErrors "questions"
+                        }}</span>{{ end }}
+                    <div class="teacher-form-actions"><a href="/teacher/quizzes" class="dash-link">Cancel</a><button
+                            class="dash-button" type="submit">Save changes</button></div>
+                </form>
+            </div>
+        </section>
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+    </main>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>
+<script>
+    (() => {
+        const builder = document.getElementById("question-builder");
+        const addButton = document.getElementById("add-question");
+        if (!builder || !addButton) return;
+        const updateBlock = (block, index) => {
+            block.dataset.questionIndex = index;
+            block.querySelector("h4").textContent = `Question ${index + 1}`;
+            block.querySelector(".question-remove").setAttribute("aria-label", `Remove question ${index + 1}`);
+            block.querySelectorAll("[name]").forEach((field) => {
+                field.name = field.name.replace(/_\d+$/, `_${index}`);
+                field.id = field.name;
+            });
+            block.querySelectorAll("label[for]").forEach((label) => label.htmlFor = label.htmlFor.replace(/_\d+$/, `_${index}`));
+            block.querySelector(".question-remove").onclick = () => {
+                if (builder.querySelectorAll(".question-block").length > 1) block.remove();
+                builder.querySelectorAll(".question-block").forEach(updateBlock);
+            };
+        };
+        builder.querySelectorAll(".question-block").forEach(updateBlock);
+        addButton.onclick = () => {
+            const clone = builder.querySelector(".question-block").cloneNode(true);
+            clone.querySelectorAll("input, textarea").forEach((field) => field.value = "");
+            clone.querySelectorAll("select").forEach((field) => field.selectedIndex = 0);
+            builder.appendChild(clone);
+            builder.querySelectorAll(".question-block").forEach(updateBlock);
+        };
+    })();
+</script>
+{{ end }}

@@ -1,6 +1,12 @@
 package models
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var ErrForbidden = errors.New("models: forbidden")
 
 type Models struct {
 	Users       UserModel

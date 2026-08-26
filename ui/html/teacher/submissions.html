@@ -1,0 +1,56 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+    {{ template "sidebar" . }}
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+    <main class="dash-main">
+        <header class="dash-topbar"><button class="dash-menu-button" type="button" aria-label="Open navigation menu"
+                aria-expanded="false" aria-controls="dash-sidebar"><span></span><span></span><span></span></button>
+            <p class="dash-topbar-title">Submissions</p>
+        </header>
+        <section class="dash-hero dash-hero-compact fade-up">
+            <div>
+                <p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Review</p>
+                <h1 class="dash-greeting">Student submissions</h1>
+                <p class="dash-hero-sub">See the latest quiz work across the courses you teach.</p>
+            </div>
+        </section>
+        <section class="dash-section fade-up">
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Recent activity</h2>
+                    <p class="dash-section-sub">{{ len .RecentSubmissions }} submission{{ if ne (len .RecentSubmissions)
+                        1 }}s{{ end }}</p>
+                </div>
+            </div>
+            {{ if .RecentSubmissions }}
+            <ol class="activity-list">{{ range .RecentSubmissions }}<li class="activity-item"><span
+                        class="activity-score {{ if ge .Score 0 }}is-good{{ end }}">{{ .Score }}/{{ .TotalQuestions
+                        }}</span><span class="activity-body"><span class="activity-title">{{ .QuizTitle }}</span><span
+                            class="activity-meta">{{ .StudentName }} · {{ .CourseTitle }}</span></span><span
+                        class="activity-meta small">{{ shortDate .SubmittedAt }}</span></li>{{ end }}</ol>
+            {{ else }}
+            <div class="empty-state"><span class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M4 20V10" />
+                        <path d="M10 20V4" />
+                        <path d="M16 20v-7" />
+                        <path d="M22 20H2" />
+                    </svg></span>
+                <h3>No submissions yet</h3>
+                <p>Student quiz work will appear here once it is submitted.</p>
+            </div>
+            {{ end }}
+        </section>
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+    </main>
+</div>
+{{ end }}
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>{{ end }}

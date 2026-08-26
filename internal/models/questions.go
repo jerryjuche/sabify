@@ -78,3 +78,18 @@ func (m *QuestionModel) DeleteByQuiz(ctx context.Context, quizID string) error {
 	_, err := m.DB.Exec(ctx, query, quizID)
 	return err
 }
+
+func (m *QuestionModel) ReplaceByQuiz(ctx context.Context, quizID string, questions []Question) error {
+	if err := m.DeleteByQuiz(ctx, quizID); err != nil {
+		return err
+	}
+
+	for index := range questions {
+		questions[index].QuizID = quizID
+		if err := m.Insert(ctx, &questions[index]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

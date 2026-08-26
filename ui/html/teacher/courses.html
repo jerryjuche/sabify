@@ -1,217 +1,75 @@
 {{ define "styles" }}
-
 <link rel="stylesheet" href="/static/css/dashboard.css">
-
 {{ end }}
 
 {{ define "body" }}
-
 <div class="dash-shell">
-
 	{{ template "sidebar" . }}
-
 	<div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
-
-
 	<main class="dash-main">
-
 		<header class="dash-topbar">
-
-			<button class="dash-menu-button" type="button"
-					aria-label="Open navigation menu"
-					aria-expanded="false"
-					aria-controls="dash-sidebar">
-				<span></span>
-				<span></span>
-				<span></span>
+			<button class="dash-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false"
+				aria-controls="dash-sidebar">
+				<span></span><span></span><span></span>
 			</button>
-
-			<p class="dash-topbar-title">Teacher Dashboard</p>
-
+			<p class="dash-topbar-title">My Courses</p>
 		</header>
 
+		{{ if .Flash }}<div class="dash-flash" role="status">{{ .Flash }}</div>{{ end }}
 
-		{{ if .Flash }}
-		<div class="dash-flash" role="status">
-			{{ .Flash }}
-		</div>
-		{{ end }}
-
-
-		<!-- Greeting -->
-		<section class="dash-hero fade-up">
-
-			<div class="dash-hero-text">
-
-				<p class="dash-eyebrow">
-					<span class="dash-eyebrow-dot"></span>
-					Learning Intelligence
-				</p>
-
-				<h1 class="dash-greeting">
-					Welcome back,
-					<span class="dash-greeting-name">{{ if .TeacherName }}{{ .TeacherName }}{{ else }}Instructor{{ end }}</span>
-				</h1>
-
-				<p class="dash-hero-sub">
-					Manage your courses, review submissions, and support students.
-				</p>
-
+		<section class="dash-hero dash-hero-compact fade-up">
+			<div>
+				<p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Teach</p>
+				<h1 class="dash-greeting">Courses you teach</h1>
+				<p class="dash-hero-sub">Build focused learning spaces and keep every class moving forward.</p>
 			</div>
-
-			<div class="dash-hero-art" aria-hidden="true"></div>
-
+			<a href="/teacher/courses/new" class="dash-button">Create course</a>
 		</section>
 
-
-		<!-- Stats -->
-		<section class="dash-stats fade-up" aria-label="Your class at a glance">
-
-			<article class="stat-card">
-				<span class="stat-icon stat-icon-indigo" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>
-				</span>
-				<span class="stat-value">{{ .TotalCourses }}</span>
-				<span class="stat-label">Courses</span>
-			</article>
-
-			<article class="stat-card">
-				<span class="stat-icon stat-icon-violet" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
-				</span>
-				<span class="stat-value">{{ .TotalStudents }}</span>
-				<span class="stat-label">Students</span>
-			</article>
-
-			<article class="stat-card">
-				<span class="stat-icon stat-icon-green" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
-				</span>
-				<span class="stat-value">{{ .ActiveQuizzes }}</span>
-				<span class="stat-label">Active quizzes</span>
-			</article>
-
-			<article class="stat-card">
-				<span class="stat-icon stat-icon-amber" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-2 7 5.5-3 5.5 3-2-7"/></svg>
-				</span>
-				<span class="stat-value">{{ printf "%.1f" .AveragePerformance }}%</span>
-				<span class="stat-label">Avg performance</span>
-			</article>
-
+		<section class="dash-section fade-up">
+			<div class="dash-section-head">
+				<div>
+					<h2 class="dash-section-title">Your courses</h2>
+					<p class="dash-section-sub">{{ len .TeacherCourses }} course{{ if ne (len .TeacherCourses) 1 }}s{{
+						end }} owned by you</p>
+				</div>
+			</div>
+			{{ if .TeacherCourses }}
+			<div class="course-grid">
+				{{ range .TeacherCourses }}
+				<a href="/teacher/courses/{{ .ID }}" class="course-card">
+					<span class="course-card-band" aria-hidden="true"></span>
+					<div class="course-card-body">
+						<h3 class="course-card-title">{{ .Title }}</h3>
+						{{ if .Description }}<p class="course-card-desc">{{ .Description }}</p>{{ end }}
+					</div>
+					<div class="course-card-foot">
+						<span class="course-card-teacher">Created {{ shortDate .CreatedAt }}</span>
+						<span class="course-card-badge">Open course</span>
+					</div>
+				</a>
+				{{ end }}
+			</div>
+			{{ else }}
+			<div class="empty-state">
+				<span class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"
+						stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z" />
+						<path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z" />
+					</svg></span>
+				<h3>Your teaching space starts here</h3>
+				<p>Create a course to begin adding quizzes and supporting students.</p>
+				<a href="/teacher/courses/new" class="dash-button">Create your first course</a>
+			</div>
+			{{ end }}
 		</section>
-
-
-		<div class="dash-grid">
-
-			<!-- Recent submissions -->
-			<section class="dash-section fade-up">
-
-				<div class="dash-section-head">
-					<div>
-						<h2 class="dash-section-title">Recent submissions</h2>
-						<p class="dash-section-sub">Latest quiz activity from your students</p>
-					</div>
-					<a href="/teacher/submissions" class="dash-link">View all ↗</a>
-				</div>
-
-				{{ if .RecentSubmissions }}
-				<ol class="activity-list">
-					{{ range .RecentSubmissions }}
-					<li class="activity-item">
-
-						<span class="activity-score">
-							{{ .Score }}/{{ .TotalQuestions }}
-						</span>
-
-						<span class="activity-body">
-							<span class="activity-title">{{ .QuizTitle }}</span>
-							<span class="activity-meta">{{ shortDate .SubmittedAt }}</span>
-						</span>
-
-						<span class="activity-meta small">{{ .StudentName }} · {{ .CourseTitle }}</span>
-
-					</li>
-					{{ end }}
-				</ol>
-				{{ else }}
-				<div class="empty-state">
-					<h3>No submissions yet</h3>
-					<p>Students haven't submitted any quizzes recently.</p>
-				</div>
-				{{ end }}
-
-			</section>
-
-
-			<!-- AI insights & attention -->
-			<section class="dash-section fade-up">
-
-				<div class="dash-section-head">
-					<div>
-						<h2 class="dash-section-title">AI insights</h2>
-						<p class="dash-section-sub">Data-driven suggestions for your classes</p>
-					</div>
-				</div>
-
-				{{ if .AIInsights }}
-				<div class="insights-list">
-					{{ range .AIInsights }}
-					<div class="insight-row insight-row--{{ .Type }}">
-						<div class="insight-icon">{{ if eq .Type "strength" }}&#9650;{{ else if eq .Type "warning" }}&#9888;{{ else if eq .Type "trend" }}&#8596;{{ else }}&#9432;{{ end }}</div>
-						<div class="insight-content">
-							<div class="insight-title">{{ .Title }}</div>
-							<div class="insight-message">{{ .Message }}</div>
-						</div>
-					</div>
-					{{ end }}
-				</div>
-				{{ else }}
-				<div class="section-card-empty">
-					<p>No insights available yet.</p>
-				</div>
-				{{ end }}
-
-				<div class="section-card" style="margin-top:1rem">
-					<div class="section-card-header"><h3>Students requiring attention</h3></div>
-					{{ if .AttentionStudents }}
-					<div class="attention-list">
-						{{ range .AttentionStudents }}
-						<div class="attention-row">
-							<div class="attention-info">
-								<div class="attention-name">{{ .StudentName }}</div>
-								<div class="attention-detail">{{ .QuizCount }} quiz(es)</div>
-							</div>
-							<div class="attention-score">
-								<span class="score-badge score-badge--low">{{ printf "%.1f" .AvgScore }}%</span>
-							</div>
-						</div>
-						{{ end }}
-					</div>
-					{{ else }}
-					<div class="section-card-empty">
-						<p>No students currently requiring attention.</p>
-					</div>
-					{{ end }}
-				</div>
-
-			</section>
-
-		</div>
-
 
 		<footer class="dash-footer">
 			<p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
 		</footer>
-
 	</main>
-
 </div>
-
 {{ end }}
 
 {{ define "scripts" }}
-
-<script src="/static/js/dashboard.js"></script>
-
-{{ end }}
+<script src="/static/js/dashboard.js"></script>{{ end }}

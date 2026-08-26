@@ -91,6 +91,17 @@ func (m *QuizModel) FindByCourse(ctx context.Context, courseID string) ([]Quiz, 
 	return quizzes, nil
 }
 
+func (m *QuizModel) Update(ctx context.Context, quiz *Quiz) error {
+	query := `
+		UPDATE quizzes
+		SET title = $1, description = $2
+		WHERE id = $3
+		RETURNING created_at
+	`
+
+	return m.DB.QueryRow(ctx, query, quiz.Title, quiz.Description, quiz.ID).Scan(&quiz.CreatedAt)
+}
+
 func (m *QuizModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
 	query := `
 		SELECT COUNT(*)
@@ -141,7 +152,7 @@ func (m *QuizModel) Delete(ctx context.Context, id string) error {
 
 type QuizWithCourse struct {
 	Quiz
-	CourseTitle string
+	CourseTitle   string
 	QuestionCount int
 }
 

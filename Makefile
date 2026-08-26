@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help build run test lint clean db_up db_down
+.PHONY: help build run test lint clean db_up db_down migrate
 
 help:
 	@echo "Usage: make <target>"
@@ -38,3 +38,4 @@ db_down:
 
 migrate:
 	psql -h localhost -p 5434 -U sabify -d sabify_db -f migrations/001_initial_schema.sql
+	psql -h localhost -p 5434 -U sabify -d sabify_db -f migrations/002_course_enrollments.sql
