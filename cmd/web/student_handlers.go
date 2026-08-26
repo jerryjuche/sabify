@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -217,24 +219,18 @@ func (app *application) studentQuizzes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	quizzes, err := app.models.Quizzes.FindAllWithCourse(r.Context())
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
-
-	submissions, err := app.models.Submissions.FindByStudentWithQuiz(r.Context(), user.ID)
+	available, taken, err := app.models.Retakes.FindQuizzesForStudent(r.Context(), user.ID)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
 	data := app.newTemplateData(r)
-	data.Title = "Available Quizzes"
+	data.Title = "Quizzes"
 	data.User = user
 	data.CurrentPage = "quizzes"
-	data.Quizzes = quizzes
-	data.Attempted = attemptedScoreMap(submissions)
+	data.AvailableQuizzes = available
+	data.TakenQuizzes = taken
 
 	app.render(w, http.StatusOK, "student/quizzes.html", data)
 }
@@ -255,6 +251,26 @@ func (app *application) takeQuiz(w http.ResponseWriter, r *http.Request) {
 			app.serverError(w, err)
 		}
 		return
+	}
+
+	submitted, err := app.models.Submissions.HasSubmitted(r.Context(), quizID, user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	if submitted {
+		retakeAllowed, err := app.models.Retakes.IsAllowed(r.Context(), quizID, user.ID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+
+		if !retakeAllowed {
+			app.session.Put(r.Context(), "flash", "You have already taken this quiz.")
+			http.Redirect(w, r, "/student/quizzes", http.StatusSeeOther)
+			return
+		}
 	}
 
 	questions, err := app.models.Questions.FindByQuiz(r.Context(), quizID)
@@ -287,7 +303,7 @@ func (app *application) submitQuiz(w http.ResponseWriter, r *http.Request) {
 
 	quizID := chi.URLParam(r, "id")
 
-	_, err := app.models.Quizzes.FindByID(r.Context(), quizID)
+	quiz, err := app.models.Quizzes.FindByIDWithCourse(r.Context(), quizID)
 	if err != nil {
 		if err == models.ErrNoRecord {
 			app.notFound(w)
@@ -297,14 +313,53 @@ func (app *application) submitQuiz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-	 * Interactive quiz-taking is not wired up yet;
-	 * acknowledge the attempt and send the student
-	 * to their results page.
-	 */
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
 
-	app.session.Put(r.Context(), "flash", "Your submission was received.")
-	http.Redirect(w, r, "/student/results", http.StatusSeeOther)
+	questions, err := app.models.Questions.FindByQuiz(r.Context(), quizID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	correct := 0
+	for _, q := range questions {
+		studentAnswer := strings.TrimSpace(r.FormValue("answer_" + q.ID))
+		if studentAnswer == q.CorrectAnswer {
+			correct++
+		}
+	}
+
+	total := len(questions)
+
+	submission := &models.Submission{
+		QuizID:         quizID,
+		StudentID:      user.ID,
+		Score:          correct,
+		TotalQuestions: total,
+	}
+
+	if err := app.models.Submissions.Insert(r.Context(), submission); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.models.Retakes.RevokeIfAllowed(r.Context(), quizID, user.ID)
+
+	attempt, _ := app.models.Submissions.CountByQuizStudent(r.Context(), quizID, user.ID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"score":          correct,
+		"total":          total,
+		"submission_id":  submission.ID,
+		"submitted_at":   submission.SubmittedAt,
+		"quiz_title":     quiz.Title,
+		"course_id":      quiz.CourseID,
+		"attempt":        attempt,
+	})
 }
 
 func (app *application) studentResults(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +368,7 @@ func (app *application) studentResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	submissions, err := app.models.Submissions.FindByStudentWithQuiz(r.Context(), user.ID)
+	submissions, err := app.models.Submissions.FindByStudentWithAttempt(r.Context(), user.ID)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -323,8 +378,13 @@ func (app *application) studentResults(w http.ResponseWriter, r *http.Request) {
 	data.Title = "My Results"
 	data.User = user
 	data.CurrentPage = "results"
-	data.Submissions = submissions
-	data.Stats = computeStudentStats(submissions, 0)
+	data.StudentSubmissions = submissions
+
+	var subs []models.SubmissionWithQuiz
+	for _, s := range submissions {
+		subs = append(subs, s.SubmissionWithQuiz)
+	}
+	data.Stats = computeStudentStats(subs, 0)
 
 	app.render(w, http.StatusOK, "student/results.html", data)
 }

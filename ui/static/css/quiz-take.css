@@ -600,6 +600,10 @@ html:not(.js) #quiz-submit {
     display: none;
 }
 
+#modal-confirm {
+    display: inline-flex !important;
+}
+
 .modal-overlay {
     position: fixed;
     inset: 0;

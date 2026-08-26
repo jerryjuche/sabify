@@ -54,12 +54,21 @@ type templateData struct {
 	Quizzes         []models.QuizWithCourse
 	UpcomingQuizzes []models.QuizWithCourse
 	Submissions     []models.SubmissionWithQuiz
+	StudentSubmissions []models.StudentSubmissionWithAttempt
+	SubmissionAttempts []models.SubmissionWithAttempt
 	Groups          []models.StudyGroupWithMeta
 	Stats           StudentStats
 	Materials       []models.Material
 	Material        *models.Material
 	Enrolled        bool
 	AvailableCourses []models.CourseWithTeacher
+
+	/*
+	 * Quiz listing split.
+	 */
+
+	AvailableQuizzes []models.QuizWithAttempt
+	TakenQuizzes     []models.QuizWithAttempt
 
 	/*
 	 * QuizID -> best score percentage achieved

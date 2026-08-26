@@ -225,3 +225,171 @@ func (m *SubmissionModel) RecentByTeacher(ctx context.Context, teacherID string,
 
 	return submissions, nil
 }
+
+func (m *SubmissionModel) HasSubmitted(ctx context.Context, quizID, studentID string) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM submissions
+			WHERE quiz_id = $1 AND student_id = $2
+		)
+	`
+
+	var exists bool
+	err := m.DB.QueryRow(ctx, query, quizID, studentID).Scan(&exists)
+	return exists, err
+}
+
+func (m *SubmissionModel) CountByQuizStudent(ctx context.Context, quizID, studentID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM submissions
+		WHERE quiz_id = $1 AND student_id = $2
+	`
+
+	var count int
+	err := m.DB.QueryRow(ctx, query, quizID, studentID).Scan(&count)
+	return count, err
+}
+
+func (m *SubmissionModel) FindByQuizStudentAll(ctx context.Context, quizID, studentID string) ([]Submission, error) {
+	query := `
+		SELECT id, quiz_id, student_id, score, total_questions, submitted_at
+		FROM submissions
+		WHERE quiz_id = $1 AND student_id = $2
+		ORDER BY submitted_at ASC
+	`
+
+	rows, err := m.DB.Query(ctx, query, quizID, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []Submission
+
+	for rows.Next() {
+		var s Submission
+		if err := rows.Scan(
+			&s.ID, &s.QuizID, &s.StudentID,
+			&s.Score, &s.TotalQuestions, &s.SubmittedAt,
+		); err != nil {
+			return nil, err
+		}
+		submissions = append(submissions, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
+}
+
+type SubmissionWithAttempt struct {
+	Submission
+	StudentName string
+	QuizTitle   string
+	CourseTitle string
+	Attempt     int
+}
+
+type StudentSubmissionWithAttempt struct {
+	SubmissionWithQuiz
+	Attempt int
+}
+
+func (m *SubmissionModel) FindByStudentWithAttempt(ctx context.Context, studentID string) ([]StudentSubmissionWithAttempt, error) {
+	query := `
+		SELECT
+			s.id, s.quiz_id, s.student_id,
+			s.score, s.total_questions, s.submitted_at,
+			q.title AS quiz_title,
+			(
+				SELECT COUNT(*) FROM submissions s2
+				WHERE s2.quiz_id = s.quiz_id AND s2.student_id = s.student_id
+				AND s2.submitted_at <= s.submitted_at
+			) AS attempt
+		FROM submissions s
+		INNER JOIN quizzes q ON q.id = s.quiz_id
+		WHERE s.student_id = $1
+		ORDER BY s.submitted_at DESC
+	`
+
+	rows, err := m.DB.Query(ctx, query, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []StudentSubmissionWithAttempt
+
+	for rows.Next() {
+		var s StudentSubmissionWithAttempt
+		if err := rows.Scan(
+			&s.ID, &s.QuizID, &s.StudentID,
+			&s.Score, &s.TotalQuestions, &s.SubmittedAt,
+			&s.QuizTitle, &s.Attempt,
+		); err != nil {
+			return nil, err
+		}
+
+		s.Percent = -1
+		if s.TotalQuestions > 0 {
+			s.Percent = s.Score * 100 / s.TotalQuestions
+		}
+
+		submissions = append(submissions, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
+}
+
+func (m *SubmissionModel) FindByTeacherAllAttempts(ctx context.Context, teacherID string) ([]SubmissionWithAttempt, error) {
+	query := `
+		SELECT
+			s.id, s.quiz_id, s.student_id, s.score, s.total_questions, s.submitted_at,
+			u.name AS student_name,
+			q.title AS quiz_title,
+			c.title AS course_title,
+			(
+				SELECT COUNT(*) FROM submissions s2
+				WHERE s2.quiz_id = s.quiz_id AND s2.student_id = s.student_id
+				AND s2.submitted_at <= s.submitted_at
+			) AS attempt
+		FROM submissions s
+		INNER JOIN users u ON u.id = s.student_id
+		INNER JOIN quizzes q ON q.id = s.quiz_id
+		INNER JOIN courses c ON c.id = q.course_id
+		WHERE c.teacher_id = $1
+		ORDER BY s.submitted_at DESC
+	`
+
+	rows, err := m.DB.Query(ctx, query, teacherID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []SubmissionWithAttempt
+
+	for rows.Next() {
+		var s SubmissionWithAttempt
+		if err := rows.Scan(
+			&s.ID, &s.QuizID, &s.StudentID,
+			&s.Score, &s.TotalQuestions, &s.SubmittedAt,
+			&s.StudentName, &s.QuizTitle, &s.CourseTitle, &s.Attempt,
+		); err != nil {
+			return nil, err
+		}
+		submissions = append(submissions, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
+}

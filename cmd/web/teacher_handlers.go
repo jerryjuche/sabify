@@ -507,7 +507,7 @@ func (app *application) teacherSubmissions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	submissions, err := app.models.Submissions.RecentByTeacher(r.Context(), user.ID, 100)
+	submissions, err := app.models.Submissions.FindByTeacherAllAttempts(r.Context(), user.ID)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -517,8 +517,78 @@ func (app *application) teacherSubmissions(w http.ResponseWriter, r *http.Reques
 	data.Title = "Submissions"
 	data.User = user
 	data.CurrentPage = "results"
-	data.RecentSubmissions = submissions
+	data.SubmissionAttempts = submissions
 	app.render(w, http.StatusOK, "teacher/submissions.html", data)
+}
+
+func (app *application) grantRetake(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	quizID := chi.URLParam(r, "id")
+
+	quiz, err := app.models.Quizzes.FindByID(r.Context(), quizID)
+	if err != nil {
+		app.notFound(w)
+		return
+	}
+
+	course, err := app.models.Courses.FindByID(r.Context(), quiz.CourseID)
+	if err != nil || course.TeacherID != user.ID {
+		app.notFound(w)
+		return
+	}
+
+	studentID := r.FormValue("student_id")
+	if studentID == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	if err := app.models.Retakes.Grant(r.Context(), quizID, studentID, user.ID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Retake granted. The student can now retake this quiz.")
+	http.Redirect(w, r, "/teacher/submissions", http.StatusSeeOther)
+}
+
+func (app *application) revokeRetake(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	quizID := chi.URLParam(r, "id")
+
+	quiz, err := app.models.Quizzes.FindByID(r.Context(), quizID)
+	if err != nil {
+		app.notFound(w)
+		return
+	}
+
+	course, err := app.models.Courses.FindByID(r.Context(), quiz.CourseID)
+	if err != nil || course.TeacherID != user.ID {
+		app.notFound(w)
+		return
+	}
+
+	studentID := r.FormValue("student_id")
+	if studentID == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	if err := app.models.Retakes.Revoke(r.Context(), quizID, studentID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Retake revoked.")
+	http.Redirect(w, r, "/teacher/submissions", http.StatusSeeOther)
 }
 
 func (app *application) uploadMaterial(w http.ResponseWriter, r *http.Request) {

@@ -40,29 +40,33 @@
 
         <section class="dash-hero dash-hero-compact fade-up">
 
-            <h1 class="dash-greeting">Available Quizzes</h1>
+            <h1 class="dash-greeting">My Quizzes</h1>
 
-            {{ if gt (len .Quizzes) 0 }}
+            {{ if or .AvailableQuizzes .TakenQuizzes }}
             <p class="dash-hero-sub">
-                {{ len .Quizzes }} quiz{{ if ne (len .Quizzes) 1 }}zes{{ end }} across your courses.
-                Attempted ones show your best score.
+                {{ if .AvailableQuizzes }}{{ len .AvailableQuizzes }} quiz{{ if ne (len .AvailableQuizzes) 1 }}zes{{ end }} available to take.{{ end }}
+                {{ if .TakenQuizzes }} You've completed {{ len .TakenQuizzes }} quiz{{ if ne (len .TakenQuizzes) 1 }}zes{{ end }}.{{ end }}
             </p>
             {{ else }}
-            <p class="dash-hero-sub">New quizzes will appear here as your teachers publish them.</p>
+            <p class="dash-hero-sub">No quizzes yet. They'll appear here as your teachers publish them.</p>
             {{ end }}
 
         </section>
 
 
+        {{ if .AvailableQuizzes }}
         <section class="dash-section fade-up">
 
-            {{ if .Quizzes }}
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Available</h2>
+                    <p class="dash-section-sub">{{ len .AvailableQuizzes }} quiz{{ if ne (len .AvailableQuizzes) 1 }}zes{{ end }}</p>
+                </div>
+            </div>
 
             <ul class="row-list">
 
-                {{ range .Quizzes }}
-
-                {{ $best := index $.Attempted .ID }}
+                {{ range .AvailableQuizzes }}
 
                 <li class="row-item">
 
@@ -75,15 +79,15 @@
                         <span class="activity-meta">{{ .CourseTitle }} · {{ .QuestionCount }} question{{ if ne .QuestionCount 1 }}s{{ end }}</span>
                     </span>
 
-                    {{ if ge $best 0 }}
-                    <span class="status-pill status-pill-good">Best {{ $best }}%</span>
-                    {{ else }}
-                    <span class="status-pill status-pill-new">Not attempted</span>
+                    {{ if .RetakeAllowed }}
+                    <span class="status-pill" style="background:rgba(124,58,237,.12);color:#7c3aed;">Retake allowed</span>
+                    {{ else if ge .BestScore 0 }}
+                    <span class="status-pill status-pill-good">Best {{ .BestScore }}%</span>
                     {{ end }}
 
                     <a href="/student/quizzes/{{ .ID }}" class="row-action"
                        aria-label="Open quiz: {{ .Title }}">
-                        Open
+                        {{ if .RetakeAllowed }}Retake{{ else }}Start{{ end }}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                     </a>
 
@@ -93,8 +97,50 @@
 
             </ul>
 
-            {{ else }}
+        </section>
+        {{ end }}
 
+
+        {{ if .TakenQuizzes }}
+        <section class="dash-section fade-up">
+
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Completed</h2>
+                    <p class="dash-section-sub">{{ len .TakenQuizzes }} quiz{{ if ne (len .TakenQuizzes) 1 }}zes{{ end }}</p>
+                </div>
+            </div>
+
+            <ul class="row-list">
+
+                {{ range .TakenQuizzes }}
+
+                <li class="row-item">
+
+                    <span class="row-item-icon row-item-icon-green" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    </span>
+
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .Title }}</span>
+                        <span class="activity-meta">{{ .CourseTitle }} · {{ .AttemptCount }} attempt{{ if ne .AttemptCount 1 }}s{{ end }}</span>
+                    </span>
+
+                    <span class="status-pill status-pill-good">Best {{ .BestScore }}%</span>
+
+                </li>
+
+                {{ end }}
+
+            </ul>
+
+        </section>
+        {{ end }}
+
+
+        {{ if not .AvailableQuizzes }}
+        {{ if not .TakenQuizzes }}
+        <section class="dash-section fade-up">
             <div class="empty-state">
                 <span class="empty-state-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.5.7c0 1.8-2.7 2.4-2.7 3.8"/><circle cx="12" cy="17" r="0.4" fill="currentColor"/></svg>
@@ -102,10 +148,9 @@
                 <h3>No quizzes yet</h3>
                 <p>Once teachers publish quizzes, they'll show up here.</p>
             </div>
-
-            {{ end }}
-
         </section>
+        {{ end }}
+        {{ end }}
 
 
         <footer class="dash-footer">

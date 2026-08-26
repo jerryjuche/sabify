@@ -53,6 +53,8 @@ func (app *application) routes() http.Handler {
 		r.Get("/teacher/quizzes/{id}/edit", app.editQuiz)
 		r.Post("/teacher/quizzes/{id}/edit", app.editQuiz)
 		r.Post("/teacher/quizzes/{id}/delete", app.deleteQuiz)
+		r.Post("/teacher/quizzes/{id}/retake", app.grantRetake)
+		r.Post("/teacher/quizzes/{id}/retake/revoke", app.revokeRetake)
 		r.Get("/teacher/submissions", app.teacherSubmissions)
 	})
 
