@@ -59,6 +59,56 @@ func (m *EnrollmentModel) FindByCourse(ctx context.Context, courseID string) ([]
 	return enrollments, nil
 }
 
+func (m *EnrollmentModel) FindByStudent(ctx context.Context, studentID string) ([]string, error) {
+	query := `
+		SELECT course_id
+		FROM course_enrollments
+		WHERE student_id = $1
+		ORDER BY enrolled_at ASC
+	`
+
+	rows, err := m.DB.Query(ctx, query, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var courseIDs []string
+
+	for rows.Next() {
+		var courseID string
+		if err := rows.Scan(&courseID); err != nil {
+			return nil, err
+		}
+		courseIDs = append(courseIDs, courseID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return courseIDs, nil
+}
+
+func (m *EnrollmentModel) IsEnrolled(ctx context.Context, courseID, studentID string) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM course_enrollments
+			WHERE course_id = $1 AND student_id = $2
+		)
+	`
+
+	var enrolled bool
+	err := m.DB.QueryRow(ctx, query, courseID, studentID).Scan(&enrolled)
+	return enrolled, err
+}
+
+func (m *EnrollmentModel) Delete(ctx context.Context, courseID, studentID string) error {
+	query := `DELETE FROM course_enrollments WHERE course_id = $1 AND student_id = $2`
+	_, err := m.DB.Exec(ctx, query, courseID, studentID)
+	return err
+}
+
 func (m *EnrollmentModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
 	query := `
 		SELECT COUNT(DISTINCT ce.student_id)

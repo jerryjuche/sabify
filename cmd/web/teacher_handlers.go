@@ -3,7 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -231,12 +234,19 @@ func (app *application) teacherCourseDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	materials, err := app.models.Materials.FindByCourse(r.Context(), courseID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
 	data := app.newTemplateData(r)
 	data.Title = course.Title
 	data.User = user
 	data.CurrentPage = "courses"
 	data.Course = course
 	data.CourseQuizzes = quizzes
+	data.Materials = materials
 	app.render(w, http.StatusOK, "teacher/course-detail.html", data)
 }
 
@@ -398,7 +408,7 @@ func (app *application) editQuiz(w http.ResponseWriter, r *http.Request) {
 	data.Title = "Edit Quiz"
 	data.User = user
 	data.CurrentPage = "quizzes"
-	data.Quiz = quiz
+	data.Quiz = &models.QuizWithCourse{Quiz: *quiz}
 	questions, err := app.models.Questions.FindByQuiz(r.Context(), quiz.ID)
 	if err != nil {
 		app.serverError(w, err)
@@ -509,4 +519,119 @@ func (app *application) teacherSubmissions(w http.ResponseWriter, r *http.Reques
 	data.CurrentPage = "results"
 	data.RecentSubmissions = submissions
 	app.render(w, http.StatusOK, "teacher/submissions.html", data)
+}
+
+func (app *application) uploadMaterial(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	courseID := chi.URLParam(r, "id")
+
+	course, err := app.models.Courses.FindByID(r.Context(), courseID)
+	if err != nil || course.TeacherID != user.ID {
+		app.notFound(w)
+		return
+	}
+
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	title := strings.TrimSpace(r.Form.Get("title"))
+	description := strings.TrimSpace(r.Form.Get("description"))
+
+	v := validator.New()
+	v.CheckField(validator.NotBlank(title), "title", "This field cannot be blank")
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		v.CheckField(false, "file", "Please select a PDF file to upload")
+	} else {
+		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		v.CheckField(ext == ".pdf", "file", "Only PDF files are accepted")
+	}
+
+	if !v.Valid() {
+		http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
+		return
+	}
+
+	material := &models.Material{
+		CourseID:    courseID,
+		Title:       title,
+		Description: description,
+	}
+
+	if err := app.models.Materials.Insert(r.Context(), material); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	ext := filepath.Ext(handler.Filename)
+	filename := material.ID + ext
+
+	uploadDir := "./ui/static/uploads"
+	os.MkdirAll(uploadDir, 0755)
+
+	dst, err := os.Create(filepath.Join(uploadDir, filename))
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	material.FileURL = "/static/uploads/" + filename
+	if err := app.models.Materials.UpdateFileURL(r.Context(), material.ID, material.FileURL); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Material uploaded successfully!")
+	http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
+}
+
+func (app *application) deleteMaterial(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	courseID := chi.URLParam(r, "id")
+	materialID := chi.URLParam(r, "materialId")
+
+	material, err := app.models.Materials.FindByID(r.Context(), materialID)
+	if err != nil || material.CourseID != courseID {
+		app.notFound(w)
+		return
+	}
+
+	course, err := app.models.Courses.FindByID(r.Context(), courseID)
+	if err != nil || course.TeacherID != user.ID {
+		app.notFound(w)
+		return
+	}
+
+	if material.FileURL != "" {
+		filePath := "./ui" + material.FileURL
+		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+			app.logger.Error("failed to delete material file", "path", filePath, "error", err)
+		}
+	}
+
+	if err := app.models.Materials.Delete(r.Context(), materialID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Material deleted successfully!")
+	http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
 }

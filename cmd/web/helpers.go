@@ -47,14 +47,19 @@ type templateData struct {
 	Courses         []models.CourseWithTeacher
 	TeacherCourses  []models.Course
 	Course          *models.CourseWithTeacher
-	Quiz            *models.Quiz
+	Quiz            *models.QuizWithCourse
 	Questions       []models.Question
+	CorrectAnswers  map[string]string
 	CourseQuizzes   []models.Quiz
 	Quizzes         []models.QuizWithCourse
 	UpcomingQuizzes []models.QuizWithCourse
 	Submissions     []models.SubmissionWithQuiz
 	Groups          []models.StudyGroupWithMeta
 	Stats           StudentStats
+	Materials       []models.Material
+	Material        *models.Material
+	Enrolled        bool
+	AvailableCourses []models.CourseWithTeacher
 
 	/*
 	 * QuizID -> best score percentage achieved

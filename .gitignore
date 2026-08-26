@@ -29,3 +29,7 @@ go.work.sum
 .DS_Store
 Thumbs.db
 web
+
+# Uploaded files
+ui/static/uploads/*
+!ui/static/uploads/.gitkeep
