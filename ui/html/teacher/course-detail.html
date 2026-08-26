@@ -43,6 +43,63 @@
                     class="dash-button">Create quiz</a>
             </div>{{ end }}
         </section>
+
+        <section class="dash-section fade-up">
+            <div class="dash-section-head">
+                <div>
+                    <h2 class="dash-section-title">Course materials</h2>
+                    <p class="dash-section-sub">Upload PDFs for your students to view in the browser.</p>
+                </div>
+            </div>
+
+            <form action="/teacher/courses/{{ .Course.ID }}/materials" method="POST" enctype="multipart/form-data" class="material-upload-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="material-title">Title</label>
+                        <input type="text" id="material-title" name="title" required maxlength="255" placeholder="e.g. Chapter 1 slides">
+                    </div>
+                    <div class="form-group">
+                        <label for="material-desc">Description (optional)</label>
+                        <input type="text" id="material-desc" name="description" maxlength="500" placeholder="Brief description">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group form-group-grow">
+                        <label for="material-file">PDF file</label>
+                        <input type="file" id="material-file" name="file" accept=".pdf" required>
+                    </div>
+                    <button type="submit" class="dash-button">Upload</button>
+                </div>
+            </form>
+
+            {{ if .Materials }}
+            <ul class="row-list" style="margin-top:1.5rem">
+                {{ range .Materials }}
+                <li class="row-item">
+                    <span class="row-item-icon row-item-icon-blue" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
+                    </span>
+                    <span class="activity-body">
+                        <span class="activity-title">{{ .Title }}</span>
+                        {{ if .Description }}<span class="activity-meta">{{ .Description }}</span>{{ end }}
+                    </span>
+                    <span class="activity-meta">{{ shortDate .CreatedAt }}</span>
+                    <form action="/teacher/courses/{{ $.Course.ID }}/materials/{{ .ID }}/delete" method="POST" style="margin-left:0.5rem" onsubmit="return confirm('Delete this material?')">
+                        <button type="submit" class="dash-button dash-button-ghost" title="Delete material">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                    </form>
+                </li>
+                {{ end }}
+            </ul>
+            {{ else }}
+            <div class="empty-state" style="margin-top:1rem">
+                <h3>No materials uploaded</h3>
+                <p>Upload a PDF to share course content with your students.</p>
+            </div>
+            {{ end }}
+        </section>
+
         <footer class="dash-footer">
             <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
         </footer>

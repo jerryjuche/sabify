@@ -264,12 +264,12 @@ document.addEventListener("DOMContentLoaded", () => {
         modalText.innerHTML =
             unanswered > 0
 
-                ? "You have <strong>" + unanswered +
+                ? "You still have <strong>" + unanswered +
                 "</strong> unanswered question" +
                 (unanswered === 1 ? "" : "s") +
-                ". They will be marked as skipped."
+                ". Once you submit, you <strong>cannot go back</strong> to change your answers."
 
-                : "All questions answered. Ready to hand it in?";
+                : "You've answered all questions. Once you submit, you <strong>cannot go back</strong> to change your answers.";
 
         modal.hidden = false;
         confirmBtn.focus();

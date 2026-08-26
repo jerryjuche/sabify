@@ -102,7 +102,7 @@ The teacher logic is centered in `cmd/web/teacher_handlers.go`.
 It then builds AI-style insight cards from those values.
 
 `generateInsights()` creates messages such as:
-- course creation prompt
+- course creapsql -h localhost -p 5434 -U sabify -d sabify_db -f migrations/002_course_enrollments.sqltion prompt
 - strong class performance
 - room for improvement
 - students needing attention

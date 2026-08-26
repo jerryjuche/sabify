@@ -17,6 +17,7 @@ type Models struct {
 	Submissions SubmissionModel
 	StudyGroups StudyGroupModel
 	Enrollments EnrollmentModel
+	Retakes     RetakeModel
 }
 
 func NewModels(db *pgxpool.Pool) Models {
@@ -29,5 +30,6 @@ func NewModels(db *pgxpool.Pool) Models {
 		Submissions: SubmissionModel{DB: db},
 		StudyGroups: StudyGroupModel{DB: db},
 		Enrollments: EnrollmentModel{DB: db},
+		Retakes:     RetakeModel{DB: db},
 	}
 }

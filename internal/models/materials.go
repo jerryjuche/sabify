@@ -33,6 +33,25 @@ func (m *MaterialModel) Insert(ctx context.Context, material *Material) error {
 	).Scan(&material.ID, &material.CreatedAt)
 }
 
+func (m *MaterialModel) FindByID(ctx context.Context, id string) (*Material, error) {
+	query := `
+		SELECT id, course_id, title, description, file_url, created_at
+		FROM materials
+		WHERE id = $1
+	`
+
+	var mat Material
+	err := m.DB.QueryRow(ctx, query, id).Scan(
+		&mat.ID, &mat.CourseID, &mat.Title,
+		&mat.Description, &mat.FileURL, &mat.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mat, nil
+}
+
 func (m *MaterialModel) FindByCourse(ctx context.Context, courseID string) ([]Material, error) {
 	query := `
 		SELECT id, course_id, title, description, file_url, created_at
@@ -65,4 +84,22 @@ func (m *MaterialModel) FindByCourse(ctx context.Context, courseID string) ([]Ma
 	}
 
 	return materials, nil
+}
+
+func (m *MaterialModel) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM materials WHERE id = $1`
+	tag, err := m.DB.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRecord
+	}
+	return nil
+}
+
+func (m *MaterialModel) UpdateFileURL(ctx context.Context, id string, fileURL string) error {
+	query := `UPDATE materials SET file_url = $1 WHERE id = $2`
+	_, err := m.DB.Exec(ctx, query, fileURL, id)
+	return err
 }

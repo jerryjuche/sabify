@@ -87,11 +87,11 @@
 
         <section class="dash-section fade-up">
 
-            {{ if .Submissions }}
+            {{ if .StudentSubmissions }}
 
             <ol class="activity-list activity-list-lg">
 
-                {{ range .Submissions }}
+                {{ range .StudentSubmissions }}
                 <li class="activity-item">
 
                     <span class="activity-score {{ if ge .Percent 70 }}is-good{{ else }}is-low{{ end }}">
@@ -99,7 +99,7 @@
                     </span>
 
                     <span class="activity-body">
-                        <span class="activity-title">{{ .QuizTitle }}</span>
+                        <span class="activity-title">{{ .QuizTitle }} {{ if gt .Attempt 1 }}<span style="font-weight:400;font-size:var(--text-xs);color:var(--color-text-muted);">attempt {{ .Attempt }}</span>{{ end }}</span>
                         <span class="activity-meta">
                             {{ shortDate .SubmittedAt }} ·
                             {{ .Score }} / {{ .TotalQuestions }} correct

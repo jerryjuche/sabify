@@ -573,6 +573,95 @@
     box-shadow: var(--shadow-lg);
 }
 
+.dash-button-sm {
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-4);
+}
+
+.dash-button-outline {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: none;
+}
+
+.dash-button-outline:hover {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+    box-shadow: none;
+    transform: none;
+}
+
+.dash-button-ghost {
+    background: transparent;
+    color: var(--color-text-muted);
+    box-shadow: none;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+}
+
+.dash-button-ghost:hover {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+    box-shadow: none;
+    transform: none;
+}
+
+.material-upload-form {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.material-upload-form .form-row {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-end;
+}
+
+.material-upload-form .form-group {
+    display: grid;
+    gap: var(--space-1);
+    flex: 1;
+}
+
+.material-upload-form .form-group-grow {
+    flex: 2;
+}
+
+.material-upload-form label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+}
+
+.material-upload-form input[type="text"],
+.material-upload-form input[type="file"] {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: var(--text-sm);
+}
+
+.material-upload-form input:focus {
+    outline: none;
+    border-color: rgba(79, 70, 229, 0.5);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.10);
+}
+
+@media (max-width: 600px) {
+    .material-upload-form .form-row {
+        flex-direction: column;
+    }
+}
+
 .teacher-form {
     padding: var(--space-6);
 }
@@ -943,6 +1032,11 @@
 .row-item-icon-violet {
     background: var(--color-ai-background);
     color: var(--color-ai-primary);
+}
+
+.row-item-icon-blue {
+    background: #dbeafe;
+    color: #2563eb;
 }
 
 .row-item-icon svg {
