@@ -23,7 +23,16 @@
                 <h1 class="dash-greeting">Your quizzes</h1>
                 <p class="dash-hero-sub">Create assessments for the courses you teach and follow student progress.</p>
             </div>
-            <a href="/teacher/quizzes/new" class="dash-button">Create quiz</a>
+            <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;">
+                <a href="/teacher/quizzes/new" class="dash-button dash-button-primary">Create quiz</a>
+                <a href="/teacher/quizzes/new" class="dash-button dash-button-generate">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2l1.9 5.7L19.6 9l-5.7 1.9L12 16.6l-1.9-5.7L4.4 9l5.7-1.3z" />
+                        <path d="M19 14l.9 2.6L22.5 17l-2.6.9L19 20.5l-.9-2.6-2.6-.9 2.6-.9z" opacity=".7" />
+                    </svg>
+                    <span class="dash-button-label">Generate quiz</span>
+                </a>
+            </div>
         </section>
 
         <section class="dash-section fade-up">

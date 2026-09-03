@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"sabify/internal/ai"
 	"sabify/internal/models"
 	"sabify/internal/validator"
 )
@@ -369,6 +371,74 @@ func (app *application) createQuiz(w http.ResponseWriter, r *http.Request) {
 }
 
 // AI QUIZ
+
+func (app *application) generateQuiz(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	var req struct {
+		CourseID          string `json:"course_id"`
+		Title             string `json:"title"`
+		Description       string `json:"description"`
+		NumberOfQuestions int    `json:"number_of_questions"`
+		Difficulty        string `json:"difficulty"`
+		QuestionType      string `json:"question_type"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	if req.CourseID == "" || req.Title == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	course, err := app.models.Courses.FindByID(r.Context(), req.CourseID)
+	if err != nil || course.TeacherID != user.ID {
+		app.clientError(w, http.StatusForbidden)
+		return
+	}
+
+	if req.NumberOfQuestions <= 0 || req.NumberOfQuestions > 20 {
+		req.NumberOfQuestions = 5
+	}
+
+	topic := req.Title
+	if req.Description != "" {
+		topic = req.Title + ": " + req.Description
+	}
+
+	if req.Difficulty == "" {
+		req.Difficulty = "basic"
+	}
+	if req.QuestionType == "" {
+		req.QuestionType = "multiple_choice"
+	}
+
+	result, err := app.aiClient.GenerateQuiz(r.Context(), ai.QuizGenerationRequest{
+		CourseID:          req.CourseID,
+		Topic:             topic,
+		NumberOfQuestions: req.NumberOfQuestions,
+		Difficulty:        req.Difficulty,
+		QuestionType:      req.QuestionType,
+	})
+	if err != nil {
+		app.logger.Error("AI quiz generation failed", "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "AI could not generate questions right now. Please try again.",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
 
 func (app *application) teacherOwnedQuiz(w http.ResponseWriter, r *http.Request, userID string) (*models.Quiz, error) {
 	quizID := chi.URLParam(r, "id")
