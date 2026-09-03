@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
+	"sabify/internal/ai"
 	"sabify/internal/models"
 )
 
@@ -27,11 +28,18 @@ type application struct {
 	models        models.Models
 	templateCache map[string]*template.Template
 	session       *scs.SessionManager
+	aiClient      *ai.Client
 }
 
 type config struct {
 	addr string
-	db   struct {
+
+	// ai struct
+	ai struct {
+		baseURL string
+	}
+
+	db struct {
 		dsn          string
 		maxOpenConns int
 		maxIdleConns int
@@ -55,6 +63,13 @@ func main() {
 
 	if err := godotenv.Load(); err != nil {
 		logger.Error("failed to load .env file", "error", err)
+		os.Exit(1)
+	}
+
+	cfg.ai.baseURL = os.Getenv("AI_SERVICE_URL")
+
+	if cfg.ai.baseURL == "" {
+		logger.Error("AI_SERVICE_URL is not set")
 		os.Exit(1)
 	}
 
@@ -100,6 +115,7 @@ func main() {
 		models:        models.NewModels(dbPool),
 		templateCache: templateCache,
 		session:       session,
+		aiClient:      ai.NewClient(cfg.ai.baseURL),
 	}
 
 	srv := &http.Server{
@@ -107,7 +123,7 @@ func main() {
 		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 60 * time.Second,
 	}
 
 	done := make(chan os.Signal, 1)

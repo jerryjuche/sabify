@@ -368,6 +368,8 @@ func (app *application) createQuiz(w http.ResponseWriter, r *http.Request) {
 	app.render(w, http.StatusOK, "teacher/create-quiz.html", data)
 }
 
+// AI QUIZ
+
 func (app *application) teacherOwnedQuiz(w http.ResponseWriter, r *http.Request, userID string) (*models.Quiz, error) {
 	quizID := chi.URLParam(r, "id")
 	quiz, err := app.models.Quizzes.FindByID(r.Context(), quizID)
@@ -704,4 +706,86 @@ func (app *application) deleteMaterial(w http.ResponseWriter, r *http.Request) {
 
 	app.session.Put(r.Context(), "flash", "Material deleted successfully!")
 	http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
+}
+
+func (app *application) deleteCourse(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	courseID := chi.URLParam(r, "id")
+
+	// Find the course first so we can verify ownership.
+	course, err := app.models.Courses.FindByID(r.Context(), courseID)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+			return
+		}
+
+		app.serverError(w, err)
+		return
+	}
+
+	// Only the teacher who owns the course can delete it.
+	if course.TeacherID != user.ID {
+		app.clientError(w, http.StatusForbidden)
+		return
+	}
+
+	// Find all materials belonging to this course so their
+	// physical PDF files can be removed from the server.
+	materials, err := app.models.Materials.FindByCourse(r.Context(), courseID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// Delete the physical files associated with the materials.
+	for _, material := range materials {
+		if material.FileURL == "" {
+			continue
+		}
+
+		filePath := "./ui" + material.FileURL
+
+		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+			// Log the error but don't prevent the database
+			// deletion from happening.
+			app.logger.Error(
+				"failed to delete material file",
+				"path", filePath,
+				"error", err,
+			)
+		}
+	}
+
+	// Delete the course.
+	// PostgreSQL ON DELETE CASCADE will automatically delete:
+	// - materials
+	// - quizzes
+	// - questions
+	// - submissions
+	// - enrollments
+	// - study groups
+	// - study group members
+	// - quiz retakes
+	if err := app.models.Courses.Delete(r.Context(), courseID); err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+			return
+		}
+
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(
+		r.Context(),
+		"flash",
+		"Course deleted successfully!",
+	)
+
+	http.Redirect(w, r, "/teacher/courses", http.StatusSeeOther)
 }
