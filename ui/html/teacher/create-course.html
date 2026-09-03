@@ -34,6 +34,10 @@
                             placeholder="What will students learn?">{{ .Form.description }}</textarea>{{ if index
                         .FormErrors "description" }}<span class="error-message">{{ index .FormErrors "description"
                             }}</span>{{ end }}</div>
+                    <div class="field-group"><label for="price">Price (₦, optional)</label><input id="price"
+                            name="price" type="number" min="0" step="1" value="{{ .Form.price }}"
+                            placeholder="e.g. 2500 — leave blank for a free course">{{ if index .FormErrors "price"
+                        }}<span class="error-message">{{ index .FormErrors "price" }}</span>{{ end }}</div>
                     <div class="teacher-form-actions"><a href="/teacher/courses" class="dash-link">Cancel</a><button
                             class="dash-button" type="submit">Create course</button></div>
                 </form>

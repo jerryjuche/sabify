@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -170,10 +171,16 @@ func (app *application) createCourse(w http.ResponseWriter, r *http.Request) {
 
 	title := r.Form.Get("title")
 	description := r.Form.Get("description")
+	priceNaira := strings.TrimSpace(r.Form.Get("price"))
+
+	priceKobo, priceErr := parsePriceKobo(priceNaira)
 
 	v := validator.New()
 	v.CheckField(validator.NotBlank(title), "title", "This field cannot be blank")
 	v.CheckField(validator.MaxChars(title, 255), "title", "This field must not be more than 255 characters long")
+	if priceNaira != "" && priceErr != nil {
+		v.CheckField(false, "price", "Price must be a whole number of Naira")
+	}
 
 	if !v.Valid() {
 		data := app.newTemplateData(r)
@@ -185,6 +192,7 @@ func (app *application) createCourse(w http.ResponseWriter, r *http.Request) {
 		data.Form = map[string]string{
 			"title":       title,
 			"description": description,
+			"price":       priceNaira,
 		}
 		data.FormErrors = v.GetFieldErrors()
 		app.render(w, http.StatusUnprocessableEntity, "teacher/create-course.html", data)
@@ -197,6 +205,7 @@ func (app *application) createCourse(w http.ResponseWriter, r *http.Request) {
 		Title:       strings.TrimSpace(title),
 		Description: strings.TrimSpace(description),
 		TeacherID:   teacherID,
+		PriceKobo:   priceKobo,
 	}
 
 	err = app.models.Courses.Insert(r.Context(), course)
@@ -858,4 +867,69 @@ func (app *application) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	)
 
 	http.Redirect(w, r, "/teacher/courses", http.StatusSeeOther)
+}
+
+// parsePriceKobo converts a Naira amount string to kobo. Returns a nil pointer
+// when the input is blank (free course).
+func parsePriceKobo(naira string) (*int64, error) {
+	naira = strings.TrimSpace(naira)
+	if naira == "" {
+		return nil, nil
+	}
+
+	amount, err := strconv.ParseInt(naira, 10, 64)
+	if err != nil || amount < 0 {
+		return nil, errors.New("invalid price")
+	}
+
+	kobo := amount * 100
+	return &kobo, nil
+}
+
+func (app *application) updateCoursePrice(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	courseID := chi.URLParam(r, "id")
+
+	course, err := app.models.Courses.FindByID(r.Context(), courseID)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+	if course.TeacherID != user.ID {
+		app.clientError(w, http.StatusForbidden)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	priceNaira := strings.TrimSpace(r.Form.Get("price"))
+	priceKobo, err := parsePriceKobo(priceNaira)
+	if err != nil {
+		app.session.Put(r.Context(), "flash", "Price must be a whole number of Naira.")
+		http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
+		return
+	}
+
+	if err := app.models.Courses.UpdatePrice(r.Context(), courseID, priceKobo); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	if priceKobo == nil {
+		app.session.Put(r.Context(), "flash", "Course is now free.")
+	} else {
+		app.session.Put(r.Context(), "flash", "Course price updated.")
+	}
+	http.Redirect(w, r, fmt.Sprintf("/teacher/courses/%s", courseID), http.StatusSeeOther)
 }

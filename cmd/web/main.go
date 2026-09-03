@@ -19,6 +19,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"sabify/internal/ai"
+	"sabify/internal/bmoni"
 	"sabify/internal/models"
 )
 
@@ -29,6 +30,7 @@ type application struct {
 	templateCache map[string]*template.Template
 	session       *scs.SessionManager
 	aiClient      *ai.Client
+	bmoniClient   *bmoni.Client
 }
 
 type config struct {
@@ -37,6 +39,14 @@ type config struct {
 	// ai struct
 	ai struct {
 		baseURL string
+	}
+
+	// bmoni struct
+	bmoni struct {
+		baseURL       string
+		apiKey        string
+		webhookSecret string
+		walletEncKey  string
 	}
 
 	db struct {
@@ -72,6 +82,14 @@ func main() {
 		logger.Error("AI_SERVICE_URL is not set")
 		os.Exit(1)
 	}
+
+	cfg.bmoni.baseURL = os.Getenv("BMONI_BASE_URL")
+	if cfg.bmoni.baseURL == "" {
+		cfg.bmoni.baseURL = "https://embedded-dev.bmoni.com"
+	}
+	cfg.bmoni.apiKey = os.Getenv("BMONI_API_KEY")
+	cfg.bmoni.webhookSecret = os.Getenv("BMONI_WEBHOOK_SECRET")
+	cfg.bmoni.walletEncKey = os.Getenv("BMONI_WALLET_ENCRYPTION_KEY")
 
 	if cfg.db.dsn == "" {
 		cfg.db.dsn = fmt.Sprintf(
@@ -116,6 +134,7 @@ func main() {
 		templateCache: templateCache,
 		session:       session,
 		aiClient:      ai.NewClient(cfg.ai.baseURL),
+		bmoniClient:   bmoni.NewClient(cfg.bmoni.baseURL, cfg.bmoni.apiKey),
 	}
 
 	srv := &http.Server{
@@ -194,6 +213,12 @@ var templateFuncs = template.FuncMap{
 			return first + strings.ToUpper(parts[len(parts)-1][:1])
 		}
 		return first
+	},
+	"naira": func(kobo *int64) string {
+		if kobo == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d", *kobo/100)
 	},
 	"shortDate": func(t time.Time) string {
 		return t.Format("Jan 2")

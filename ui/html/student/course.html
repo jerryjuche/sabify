@@ -71,10 +71,24 @@
             <form action="/student/courses/{{ .Course.ID }}/unenroll" method="POST" style="margin-top:var(--space-4)" onsubmit="return confirm('Leave this course?')">
                 <button type="submit" class="dash-button dash-button-sm dash-button-outline">Leave course</button>
             </form>
+            {{ else if eq .CourseAccessStatus "LOCKED" }}
+            <div class="paywall-card" style="margin-top:var(--space-4)">
+                <p class="dash-hero-sub" style="margin:0 0 var(--space-2)">This is a paid course. Enroll to unlock materials and quizzes.</p>
+                <form action="/student/courses/{{ .Course.ID }}/enroll" method="POST">
+                    <button type="submit" class="dash-button">
+                        {{ if .Course.PriceKobo }}Enroll for ₦{{ naira .Course.PriceKobo }}{{ else }}Enroll{{ end }}
+                    </button>
+                </form>
+            </div>
+            {{ else if eq .CourseAccessStatus "PENDING" }}
+            <div class="paywall-card" style="margin-top:var(--space-4)">
+                <p class="dash-hero-sub" style="margin:0 0 var(--space-2)">Your payment is being processed. Once confirmed, this course will unlock.</p>
+            </div>
             {{ end }}
 
         </section>
 
+        {{ if or .Enrolled (eq .CourseAccessStatus "ACTIVE") (eq .CourseAccessStatus "") }}
 
         <section class="dash-section fade-up">
 
@@ -179,6 +193,8 @@
             {{ end }}
 
         </section>
+
+        {{ end }}
 
         {{ else }}
 

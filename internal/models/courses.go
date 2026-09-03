@@ -14,6 +14,7 @@ type Course struct {
 	Title       string
 	Description string
 	TeacherID   string
+	PriceKobo   *int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -24,14 +25,14 @@ type CourseModel struct {
 
 func (m *CourseModel) Insert(ctx context.Context, course *Course) error {
 	query := `
-		INSERT INTO courses (title, description, teacher_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO courses (title, description, teacher_id, price_kobo)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`
 
 	return m.DB.QueryRow(
 		ctx, query,
-		course.Title, course.Description, course.TeacherID,
+		course.Title, course.Description, course.TeacherID, course.PriceKobo,
 	).Scan(&course.ID, &course.CreatedAt, &course.UpdatedAt)
 }
 
@@ -39,14 +40,14 @@ func (m *CourseModel) FindByID(ctx context.Context, id string) (*Course, error) 
 	var course Course
 
 	query := `
-		SELECT id, title, description, teacher_id, created_at, updated_at
+		SELECT id, title, description, teacher_id, price_kobo, created_at, updated_at
 		FROM courses
 		WHERE id = $1
 	`
 
 	err := m.DB.QueryRow(ctx, query, id).Scan(
 		&course.ID, &course.Title, &course.Description,
-		&course.TeacherID, &course.CreatedAt, &course.UpdatedAt,
+		&course.TeacherID, &course.PriceKobo, &course.CreatedAt, &course.UpdatedAt,
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -60,7 +61,7 @@ func (m *CourseModel) FindByID(ctx context.Context, id string) (*Course, error) 
 
 func (m *CourseModel) FindByTeacher(ctx context.Context, teacherID string) ([]Course, error) {
 	query := `
-		SELECT id, title, description, teacher_id, created_at, updated_at
+		SELECT id, title, description, teacher_id, price_kobo, created_at, updated_at
 		FROM courses
 		WHERE teacher_id = $1
 		ORDER BY created_at DESC
@@ -78,7 +79,7 @@ func (m *CourseModel) FindByTeacher(ctx context.Context, teacherID string) ([]Co
 		var course Course
 		if err := rows.Scan(
 			&course.ID, &course.Title, &course.Description,
-			&course.TeacherID, &course.CreatedAt, &course.UpdatedAt,
+			&course.TeacherID, &course.PriceKobo, &course.CreatedAt, &course.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -94,7 +95,7 @@ func (m *CourseModel) FindByTeacher(ctx context.Context, teacherID string) ([]Co
 
 func (m *CourseModel) FindAll(ctx context.Context) ([]Course, error) {
 	query := `
-		SELECT id, title, description, teacher_id, created_at, updated_at
+		SELECT id, title, description, teacher_id, price_kobo, created_at, updated_at
 		FROM courses
 		ORDER BY created_at DESC
 	`
@@ -111,7 +112,7 @@ func (m *CourseModel) FindAll(ctx context.Context) ([]Course, error) {
 		var course Course
 		if err := rows.Scan(
 			&course.ID, &course.Title, &course.Description,
-			&course.TeacherID, &course.CreatedAt, &course.UpdatedAt,
+			&course.TeacherID, &course.PriceKobo, &course.CreatedAt, &course.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -128,15 +129,27 @@ func (m *CourseModel) FindAll(ctx context.Context) ([]Course, error) {
 func (m *CourseModel) Update(ctx context.Context, course *Course) error {
 	query := `
 		UPDATE courses
-		SET title = $1, description = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
+		SET title = $1, description = $2, price_kobo = $3, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $4
 		RETURNING updated_at
 	`
 
 	return m.DB.QueryRow(
 		ctx, query,
-		course.Title, course.Description, course.ID,
+		course.Title, course.Description, course.PriceKobo, course.ID,
 	).Scan(&course.UpdatedAt)
+}
+
+func (m *CourseModel) UpdatePrice(ctx context.Context, id string, priceKobo *int64) error {
+	query := `
+		UPDATE courses
+		SET price_kobo = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+		RETURNING updated_at
+	`
+
+	var updatedAt time.Time
+	return m.DB.QueryRow(ctx, query, priceKobo, id).Scan(&updatedAt)
 }
 
 func (m *CourseModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
@@ -181,7 +194,7 @@ func (m *CourseModel) FindByIDWithTeacher(ctx context.Context, id string) (*Cour
 	query := `
 		SELECT
 			c.id, c.title, c.description, c.teacher_id,
-			c.created_at, c.updated_at,
+			c.price_kobo, c.created_at, c.updated_at,
 			u.name AS teacher_name,
 			COUNT(q.id) AS quiz_count
 		FROM courses c
@@ -193,7 +206,7 @@ func (m *CourseModel) FindByIDWithTeacher(ctx context.Context, id string) (*Cour
 
 	err := m.DB.QueryRow(ctx, query, id).Scan(
 		&c.ID, &c.Title, &c.Description, &c.TeacherID,
-		&c.CreatedAt, &c.UpdatedAt,
+		&c.PriceKobo, &c.CreatedAt, &c.UpdatedAt,
 		&c.TeacherName, &c.QuizCount,
 	)
 
@@ -210,7 +223,7 @@ func (m *CourseModel) FindAllWithTeacher(ctx context.Context) ([]CourseWithTeach
 	query := `
 		SELECT
 			c.id, c.title, c.description, c.teacher_id,
-			c.created_at, c.updated_at,
+			c.price_kobo, c.created_at, c.updated_at,
 			u.name AS teacher_name,
 			COUNT(q.id) AS quiz_count
 		FROM courses c
@@ -232,7 +245,7 @@ func (m *CourseModel) FindAllWithTeacher(ctx context.Context) ([]CourseWithTeach
 		var c CourseWithTeacher
 		if err := rows.Scan(
 			&c.ID, &c.Title, &c.Description, &c.TeacherID,
-			&c.CreatedAt, &c.UpdatedAt,
+			&c.PriceKobo, &c.CreatedAt, &c.UpdatedAt,
 			&c.TeacherName, &c.QuizCount,
 		); err != nil {
 			return nil, err
