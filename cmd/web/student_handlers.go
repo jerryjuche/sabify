@@ -59,6 +59,18 @@ func (app *application) studentCourses(w http.ResponseWriter, r *http.Request) {
 		enrolledSet[id] = true
 	}
 
+	// Include paid courses the student has ACTIVE access to.
+	accesses, err := app.models.CourseAccess.FindByStudent(r.Context(), user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	for _, a := range accesses {
+		if a.Status == "ACTIVE" {
+			enrolledSet[a.CourseID] = true
+		}
+	}
+
 	var enrolledCourses []models.CourseWithTeacher
 	var availableCourses []models.CourseWithTeacher
 	for _, c := range allCourses {
@@ -136,28 +148,48 @@ func (app *application) studentCourseDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	accessStatus := ""
 	if !enrolled {
-		app.session.Put(r.Context(), "flash", "You are not enrolled in this course.")
-		http.Redirect(w, r, "/student/courses", http.StatusSeeOther)
-		return
+		// Free courses: non-enrolled students are bounced back.
+		// Paid courses: allow the paywall to render; access is granted by
+		// course_access instead.
+		if course.PriceKobo == nil || *course.PriceKobo == 0 {
+			app.session.Put(r.Context(), "flash", "You are not enrolled in this course.")
+			http.Redirect(w, r, "/student/courses", http.StatusSeeOther)
+			return
+		}
+
+		access, aerr := app.models.CourseAccess.Find(r.Context(), user.ID, courseID)
+		if aerr == nil && access != nil {
+			accessStatus = access.Status
+		}
 	}
 
-	quizzes, err := app.models.Quizzes.FindByCourse(r.Context(), courseID)
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
+	// Gate course content behind enrollment / active access.
+	canView := enrolled || accessStatus == "ACTIVE"
 
-	materials, err := app.models.Materials.FindByCourse(r.Context(), courseID)
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
+	var quizzes []models.Quiz
+	var materials []models.Material
+	var submissions []models.SubmissionWithQuiz
 
-	submissions, err := app.models.Submissions.FindByStudentWithQuiz(r.Context(), user.ID)
-	if err != nil {
-		app.serverError(w, err)
-		return
+	if canView {
+		quizzes, err = app.models.Quizzes.FindByCourse(r.Context(), courseID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+
+		materials, err = app.models.Materials.FindByCourse(r.Context(), courseID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+
+		submissions, err = app.models.Submissions.FindByStudentWithQuiz(r.Context(), user.ID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
 	}
 
 	data := app.newTemplateData(r)
@@ -169,6 +201,21 @@ func (app *application) studentCourseDetail(w http.ResponseWriter, r *http.Reque
 	data.Materials = materials
 	data.Enrolled = enrolled
 	data.Attempted = attemptedScoreMap(submissions)
+	data.CourseAccessStatus = accessStatus
+
+	if course.PriceKobo != nil {
+		data.CoursePriceNaira = *course.PriceKobo / 100
+	}
+
+	if !canView {
+		// Show the paywall-only view (no materials/quizzes). Preserve a
+		// genuine PENDING status; otherwise mark it LOCKED for the paywall.
+		if data.CourseAccessStatus != "PENDING" {
+			data.CourseAccessStatus = "LOCKED"
+		}
+		app.render(w, http.StatusOK, "student/course.html", data)
+		return
+	}
 
 	app.render(w, http.StatusOK, "student/course.html", data)
 }
@@ -181,19 +228,63 @@ func (app *application) enrollInCourse(w http.ResponseWriter, r *http.Request) {
 
 	courseID := chi.URLParam(r, "id")
 
-	_, err := app.models.Courses.FindByID(r.Context(), courseID)
+	course, err := app.models.Courses.FindByID(r.Context(), courseID)
 	if err != nil {
 		app.notFound(w)
 		return
 	}
 
-	if err := app.models.Enrollments.Insert(r.Context(), courseID, user.ID); err != nil {
+	// Already enrolled (free) or already has active access?
+	if enrolled, err := app.models.Enrollments.IsEnrolled(r.Context(), courseID, user.ID); err == nil && enrolled {
+		app.session.Put(r.Context(), "flash", "You are already enrolled in this course.")
+		http.Redirect(w, r, "/student/courses/"+courseID, http.StatusSeeOther)
+		return
+	}
+
+	existing, err := app.models.CourseAccess.Find(r.Context(), user.ID, courseID)
+	if err == nil && existing != nil {
+		if existing.Status == "ACTIVE" {
+			app.session.Put(r.Context(), "flash", "You already have access to this course.")
+		} else {
+			app.session.Put(r.Context(), "flash", "You already have a pending payment for this course.")
+			payment, perr := app.models.Payments.FindByID(r.Context(), *existing.PaymentID)
+			if perr == nil && payment != nil {
+				http.Redirect(w, r, "/student/pay/"+payment.ID, http.StatusSeeOther)
+				return
+			}
+		}
+		http.Redirect(w, r, "/student/courses/"+courseID, http.StatusSeeOther)
+		return
+	}
+
+	// Free course: instant enrollment, unchanged behaviour.
+	if course.PriceKobo == nil || *course.PriceKobo == 0 {
+		if err := app.models.Enrollments.Insert(r.Context(), courseID, user.ID); err != nil {
+			app.serverError(w, err)
+			return
+		}
+		app.session.Put(r.Context(), "flash", "You have been enrolled in the course!")
+		http.Redirect(w, r, "/student/courses/"+courseID, http.StatusSeeOther)
+		return
+	}
+
+	// Paid course: create a PENDING payment + course access, then go pay.
+	reference := fmt.Sprintf("SABIFY-%s-%s", courseID[:8], user.ID[:8])
+	narration := fmt.Sprintf("Sabify course payment for %s", course.Title)
+
+	payment, err := app.models.Payments.CreatePending(r.Context(), user.ID, courseID, *course.PriceKobo, reference, narration)
+	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
-	app.session.Put(r.Context(), "flash", "You have been enrolled in the course!")
-	http.Redirect(w, r, "/student/courses/"+courseID, http.StatusSeeOther)
+	if _, err := app.models.CourseAccess.Create(r.Context(), user.ID, courseID, payment.ID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Complete your payment to unlock this course.")
+	http.Redirect(w, r, "/student/pay/"+payment.ID, http.StatusSeeOther)
 }
 
 func (app *application) unenrollFromCourse(w http.ResponseWriter, r *http.Request) {
@@ -352,13 +443,13 @@ func (app *application) submitQuiz(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"score":          correct,
-		"total":          total,
-		"submission_id":  submission.ID,
-		"submitted_at":   submission.SubmittedAt,
-		"quiz_title":     quiz.Title,
-		"course_id":      quiz.CourseID,
-		"attempt":        attempt,
+		"score":         correct,
+		"total":         total,
+		"submission_id": submission.ID,
+		"submitted_at":  submission.SubmittedAt,
+		"quiz_title":    quiz.Title,
+		"course_id":     quiz.CourseID,
+		"attempt":       attempt,
 	})
 }
 

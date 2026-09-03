@@ -1,0 +1,134 @@
+{{ define "styles" }}
+
+<link rel="stylesheet" href="/static/css/dashboard.css">
+
+{{ end }}
+
+{{ define "body" }}
+
+<div class="dash-shell">
+
+    {{ template "sidebar" . }}
+
+    <div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+
+    <main class="dash-main">
+
+        <header class="dash-topbar">
+
+            <button class="dash-menu-button" type="button"
+                    aria-label="Open navigation menu"
+                    aria-expanded="false"
+                    aria-controls="dash-sidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <p class="dash-topbar-title">Payment</p>
+
+        </header>
+
+        <section class="dash-hero dash-hero-compact fade-up">
+
+            <a href="/student/courses" class="dash-back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+                My courses
+            </a>
+
+            <h1 class="dash-greeting">Pay for {{ .Course.Title }}</h1>
+
+            <div class="chip-row">
+                <span class="meta-chip">Amount: <strong>₦{{ .CoursePriceNaira }}</strong></span>
+                <span class="status-pill" id="pay-status-pill" data-status="{{ .Payment.Status }}">
+                    {{ if eq .Payment.Status "PAID" }}Payment confirmed{{ else }}Awaiting payment{{ end }}
+                </span>
+            </div>
+
+        </section>
+
+        <section class="dash-section fade-up">
+
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div>
+                        <h2 class="dash-section-title">Transfer to unlock this course</h2>
+                        <p class="dash-section-sub">Make a bank transfer to the account below, then this page will confirm your payment.</p>
+                    </div>
+                </div>
+
+                {{ if .Wallet }}
+
+                <div class="field-group">
+                    <label>Account number</label>
+                    <div class="copy-row">
+                        <code class="copy-value" id="vba-number">{{ .Wallet.VBAAccountNumber }}</code>
+                        <button type="button" class="dash-button dash-button-sm" data-copy="#vba-number">Copy</button>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label>Bank</label>
+                    <p class="copy-value">{{ .Wallet.VBABankName }}</p>
+                </div>
+
+                <div class="field-group">
+                    <label>Amount (exact)</label>
+                    <p class="copy-value">₦{{ .CoursePriceNaira }}</p>
+                </div>
+
+                <div class="field-group">
+                    <label>Reference to write in the transfer narration</label>
+                    <div class="copy-row">
+                        <code class="copy-value" id="pay-reference">{{ .PaymentReference }}</code>
+                        <button type="button" class="dash-button dash-button-sm" data-copy="#pay-reference">Copy</button>
+                    </div>
+                    <span class="activity-meta">Include this exact reference so we can match your payment.</span>
+                </div>
+
+                {{ else }}
+
+                <div class="dash-flash" role="status" style="display:block">
+                    Payment account is not configured yet. Please check back shortly.
+                </div>
+
+                {{ end }}
+
+                {{ if ne .Payment.Status "PAID" }}
+
+                <div class="field-group" style="margin-top:var(--space-4)">
+                    <p class="activity-meta" id="pay-confirm-message">Waiting for your transfer to arrive…</p>
+                    <button type="button" class="dash-button" id="check-now-btn" onclick="window.location.reload()">
+                        I've paid — check now
+                    </button>
+                </div>
+
+                {{ else }}
+
+                <div class="dash-flash" role="status" style="display:block">
+                    Payment confirmed 🎉
+                </div>
+                <a href="/student/courses/{{ .Course.ID }}" class="dash-button">Go to course</a>
+
+                {{ end }}
+
+            </div>
+
+        </section>
+
+        <footer class="dash-footer">
+            <p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+        </footer>
+
+    </main>
+
+</div>
+
+{{ end }}
+
+{{ define "scripts" }}
+
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/pay-status.js" data-payment-id="{{ .Payment.ID }}"></script>
+
+{{ end }}

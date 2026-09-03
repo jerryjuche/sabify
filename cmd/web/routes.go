@@ -26,6 +26,8 @@ func (app *application) routes() http.Handler {
 	r.Get("/", app.home)
 	r.Get("/health", app.healthCheck)
 
+	r.Post("/webhooks/bmoni", app.bmoniWebhook)
+
 	r.Get("/register", app.showRegisterForm)
 	r.Post("/register", app.register)
 	r.Get("/login", app.showLoginForm)
@@ -47,6 +49,8 @@ func (app *application) routes() http.Handler {
 		r.Get("/teacher/courses/{id}", app.teacherCourseDetail)
 		r.Post("/teacher/courses/{id}/materials", app.uploadMaterial)
 		r.Post("/teacher/courses/{id}/materials/{materialId}/delete", app.deleteMaterial)
+		r.Post("/teacher/courses/{id}/price", app.updateCoursePrice)
+		r.Get("/teacher/wallet", app.teacherWallet)
 
 		r.Post("/teacher/courses/{id}/delete", app.deleteCourse)
 
@@ -70,6 +74,8 @@ func (app *application) routes() http.Handler {
 		r.Get("/student/courses/{id}", app.studentCourseDetail)
 		r.Post("/student/courses/{id}/enroll", app.enrollInCourse)
 		r.Post("/student/courses/{id}/unenroll", app.unenrollFromCourse)
+		r.Get("/student/pay/{paymentId}", app.studentPay)
+		r.Get("/student/pay/{paymentId}/status", app.studentPayStatus)
 		r.Get("/student/courses/{id}/materials/{materialId}", app.studentViewMaterial)
 		r.Get("/student/quizzes", app.studentQuizzes)
 		r.Get("/student/quizzes/{id}", app.takeQuiz)

@@ -21,6 +21,29 @@
                     {{ .Course.Description }}</p>{{ end }}
             </div><a href="/teacher/courses" class="dash-link">Back to courses</a>
         </section>
+
+        <section class="dash-section fade-up">
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div>
+                        <h2 class="dash-section-title">Course price</h2>
+                        <p class="dash-section-sub">Students pay via BMONI before accessing paid courses.</p>
+                    </div>
+                    <span class="status-pill {{ if .Course.PriceKobo }}status-pill-good{{ end }}">
+                        {{ if .Course.PriceKobo }}₦{{ naira .Course.PriceKobo }}{{ else }}Free{{ end }}
+                    </span>
+                </div>
+                <form action="/teacher/courses/{{ .Course.ID }}/price" method="POST" class="teacher-form">
+                    <div class="field-group"><label for="course-price">Price (₦)</label><input id="course-price"
+                            name="price" type="number" min="0" step="1"
+                            value="{{ naira .Course.PriceKobo }}"
+                            placeholder="Leave blank to make it free"></div>
+                    <div class="teacher-form-actions">
+                        <button class="dash-button" type="submit">Save price</button>
+                    </div>
+                </form>
+            </div>
+        </section>
         <section class="dash-section fade-up">
             <div class="dash-section-head">
                 <div>

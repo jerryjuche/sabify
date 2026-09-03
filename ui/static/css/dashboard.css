@@ -554,7 +554,10 @@
 }
 
 .dash-button {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
     background: var(--gradient-ai);
     color: #ffffff;
     font-size: var(--text-sm);
@@ -565,12 +568,14 @@
     padding: var(--space-3) var(--space-6);
     box-shadow: var(--shadow-md);
     cursor: pointer;
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    white-space: nowrap;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
 }
 
 .dash-button:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-lg);
+    filter: brightness(1.04);
 }
 
 .dash-button-sm {
@@ -613,6 +618,57 @@
     background: var(--color-danger);
     color: #ffffff;
     border: 1px solid var(--color-danger);
+}
+
+.dash-button-generate {
+    position: relative;
+    background:
+        linear-gradient(#fff, #fff) padding-box,
+        var(--gradient-ai) border-box;
+    color: #4338ca;
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-full);
+    padding: var(--space-3) var(--space-6);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.dash-button-generate::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--gradient-ai);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.dash-button-generate > * {
+    position: relative;
+    z-index: 1;
+}
+
+.dash-button-generate:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+    color: #ffffff;
+}
+
+.dash-button-generate:hover::before {
+    opacity: 1;
+}
+
+.dash-button-primary {
+    background: var(--gradient-ai);
+    color: #ffffff;
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-full);
+    padding: var(--space-3) var(--space-6);
+    box-shadow: var(--shadow-md);
+}
+
+.dash-button-primary:hover {
+    filter: brightness(1.05);
 }
 
 .dash-button-danger:hover {

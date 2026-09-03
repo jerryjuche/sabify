@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"runtime/debug"
@@ -44,24 +45,35 @@ type templateData struct {
 	 * Dashboard payloads.
 	 */
 
-	Courses         []models.CourseWithTeacher
-	TeacherCourses  []models.Course
-	Course          *models.CourseWithTeacher
-	Quiz            *models.QuizWithCourse
-	Questions       []models.Question
-	CorrectAnswers  map[string]string
-	CourseQuizzes   []models.Quiz
-	Quizzes         []models.QuizWithCourse
-	UpcomingQuizzes []models.QuizWithCourse
-	Submissions     []models.SubmissionWithQuiz
+	Courses            []models.CourseWithTeacher
+	TeacherCourses     []models.Course
+	Course             *models.CourseWithTeacher
+	Quiz               *models.QuizWithCourse
+	Questions          []models.Question
+	CorrectAnswers     map[string]string
+	CourseQuizzes      []models.Quiz
+	Quizzes            []models.QuizWithCourse
+	UpcomingQuizzes    []models.QuizWithCourse
+	Submissions        []models.SubmissionWithQuiz
 	StudentSubmissions []models.StudentSubmissionWithAttempt
 	SubmissionAttempts []models.SubmissionWithAttempt
-	Groups          []models.StudyGroupWithMeta
-	Stats           StudentStats
-	Materials       []models.Material
-	Material        *models.Material
-	Enrolled        bool
-	AvailableCourses []models.CourseWithTeacher
+	Groups             []models.StudyGroupWithMeta
+	Stats              StudentStats
+	Materials          []models.Material
+	Material           *models.Material
+	Enrolled           bool
+	AvailableCourses   []models.CourseWithTeacher
+
+	/*
+	 * Payment / BMONI payloads.
+	 */
+
+	Payment            *models.Payment
+	PaymentReference   string
+	Wallet             *models.BmoniWallet
+	CoursePriceNaira   int64
+	CourseAccessStatus string
+	TeacherEarnings    int64
 
 	/*
 	 * Quiz listing split.
@@ -178,4 +190,8 @@ func (app *application) newTemplateData(r *http.Request) templateData {
 	}
 
 	return td
+}
+
+func (app *application) backgroundContext() context.Context {
+	return context.Background()
 }

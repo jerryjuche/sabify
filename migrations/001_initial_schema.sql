@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 
 -- USERS
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE users (
 );
 
 -- COURSES
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -23,7 +23,7 @@ CREATE TABLE courses (
 );
 
 -- MATERIALS
-CREATE TABLE materials (
+CREATE TABLE IF NOT EXISTS materials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE materials (
 );
 
 -- QUIZZES
-CREATE TABLE quizzes (
+CREATE TABLE IF NOT EXISTS quizzes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE quizzes (
 );
 
 -- QUESTIONS
-CREATE TABLE questions (
+CREATE TABLE IF NOT EXISTS questions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
     question_text TEXT NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE questions (
 );
 
 -- SUBMISSIONS
-CREATE TABLE submissions (
+CREATE TABLE IF NOT EXISTS submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -65,7 +65,7 @@ CREATE TABLE submissions (
 );
 
 -- STUDY GROUPS
-CREATE TABLE study_groups (
+CREATE TABLE IF NOT EXISTS study_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
@@ -73,7 +73,7 @@ CREATE TABLE study_groups (
 );
 
 -- STUDY GROUP MEMBERS
-CREATE TABLE study_group_members (
+CREATE TABLE IF NOT EXISTS study_group_members (
     study_group_id UUID REFERENCES study_groups(id) ON DELETE CASCADE,
     student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -1,0 +1,71 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+	{{ template "sidebar" . }}
+	<div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+	<main class="dash-main">
+		<header class="dash-topbar">
+			<button class="dash-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false"
+				aria-controls="dash-sidebar">
+				<span></span><span></span><span></span>
+			</button>
+			<p class="dash-topbar-title">Wallet</p>
+		</header>
+
+		<section class="dash-hero dash-hero-compact fade-up">
+			<div>
+				<p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Earnings</p>
+				<h1 class="dash-greeting">Your wallet</h1>
+				<p class="dash-hero-sub">Money students have paid for your courses, collected via BMONI.</p>
+			</div>
+		</section>
+
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Confirmed earnings</h2>
+						<p class="dash-section-sub">Paid course fees across all your courses.</p>
+					</div>
+					<span class="status-pill status-pill-good">₦{{ .TeacherEarnings }}</span>
+				</div>
+			</div>
+		</section>
+
+		{{ if .Wallet }}
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Platform deposit account</h2>
+						<p class="dash-section-sub">Students transfer course fees into this BMONI account.</p>
+					</div>
+				</div>
+				<div class="field-group">
+					<label>Account number</label>
+					<p class="copy-value">{{ .Wallet.VBAAccountNumber }}</p>
+				</div>
+				<div class="field-group">
+					<label>Bank</label>
+					<p class="copy-value">{{ .Wallet.VBABankName }}</p>
+				</div>
+				<div class="field-group">
+					<label>Currency</label>
+					<p class="copy-value">{{ .Wallet.Currency }}</p>
+				</div>
+			</div>
+		</section>
+		{{ end }}
+
+		<footer class="dash-footer">
+			<p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+		</footer>
+	</main>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>{{ end }}

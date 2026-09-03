@@ -241,6 +241,10 @@
                         <p class="course-card-desc">{{ .Description }}</p>
                         {{ end }}
 
+                        <span class="status-pill {{ if .PriceKobo }}status-pill-good{{ end }}">
+                            {{ if .PriceKobo }}₦{{ naira .PriceKobo }}{{ else }}Free{{ end }}
+                        </span>
+
                     </div>
 
                     <div class="course-card-foot">
@@ -251,7 +255,9 @@
                         </span>
 
                         <form action="/student/courses/{{ .ID }}/enroll" method="POST">
-                            <button type="submit" class="dash-button dash-button-sm">Enroll</button>
+                            <button type="submit" class="dash-button dash-button-sm">
+                                {{ if .PriceKobo }}Enroll · ₦{{ naira .PriceKobo }}{{ else }}Enroll{{ end }}
+                            </button>
                         </form>
 
                     </div>
