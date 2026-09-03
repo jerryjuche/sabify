@@ -47,6 +47,11 @@ func (app *application) routes() http.Handler {
 		r.Get("/teacher/courses/{id}", app.teacherCourseDetail)
 		r.Post("/teacher/courses/{id}/materials", app.uploadMaterial)
 		r.Post("/teacher/courses/{id}/materials/{materialId}/delete", app.deleteMaterial)
+
+		r.Post("/teacher/courses/{id}/delete", app.deleteCourse)
+
+		r.Post("/teacher/quizzes/generate", app.generateQuiz)
+
 		r.Get("/teacher/quizzes", app.teacherQuizzes)
 		r.Get("/teacher/quizzes/new", app.createQuiz)
 		r.Post("/teacher/quizzes", app.createQuiz)
