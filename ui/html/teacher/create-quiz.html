@@ -270,24 +270,48 @@
                 generateButton.innerHTML = "✨ Generating...";
 
                 try {
-                    const response = await fetch("/teacher/quizzes/generate", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Accept": "application/json",
-                        },
-                        body: JSON.stringify({
-                            course_id: courseID,
-                            title: title,
-                            description: description,
-                            number_of_questions: 5,
-                            difficulty: "basic",
-                            question_type: "multiple_choice",
-                        }),
-                    });
+                    console.log("=== AI QUIZ REQUEST ===");
+                    console.log("Course:", courseID);
+                    console.log("Title:", title);
+                    console.log("Description:", description);
 
-                    // Read the response safely.
+                    const payload = {
+                        course_id: courseID,
+                        title: title,
+                        description: description,
+                        number_of_questions: 5,
+                        difficulty: "basic",
+                        question_type: "multiple_choice",
+                    };
+
+                    console.log("Payload:", payload);
+
+                    let response;
+
+                    try {
+                        response = await fetch("/teacher/quizzes/generate", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Accept": "application/json",
+                            },
+                            body: JSON.stringify(payload),
+                        });
+
+                        console.log("=== AI QUIZ RESPONSE ===");
+                        console.log("Status:", response.status);
+                        console.log("OK:", response.ok);
+                        console.log("Content-Type:", response.headers.get("content-type"));
+
+                    } catch (fetchError) {
+                        console.error("=== FETCH FAILED ===");
+                        console.error(fetchError);
+                        throw fetchError;
+                    }
+
                     const responseText = await response.text();
+
+                    console.log("Raw response:", responseText);
                     let data = {};
                     if (responseText) {
                         try {
