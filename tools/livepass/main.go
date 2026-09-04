@@ -51,6 +51,8 @@ func main() {
 		genImages()
 	case "rows":
 		dumpRows()
+	case "pay":
+		dumpPayments()
 	default:
 		log.Fatalf("unknown subcommand %q", os.Args[1])
 	}
@@ -156,6 +158,44 @@ func dumpRows() {
 		}
 		log.Printf("%-30s %-8s bmoni=%-40s %-18s vba=%s %s key=%v err=%q",
 			email, role, bmoniID, status, vba, bank, hasKey, errText)
+	}
+}
+
+// dumpPayments prints payments joined to their student, course and the
+// course teacher's wallet row (BMONI user id) — everything needed to hand-
+// deliver a signed employee.deposit.completed webhook during a live pass.
+func dumpPayments() {
+	dsn := fmt.Sprintf("postgres://%s:%s@127.0.0.1:%d/%s?sslmode=disable", user, password, port, database)
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatalf("connect: %v", err)
+	}
+	defer pool.Close()
+
+	rows, err := pool.Query(context.Background(), `
+		SELECT p.id, p.status, p.amount_kobo, p.reference,
+		       COALESCE(p.paid_at::text,''),
+		       su.email, c.title, tu.email,
+		       COALESCE(w.bmoni_user_id,''), COALESCE(w.vba_account_number,'')
+		FROM payments p
+		JOIN users su ON su.id = p.student_id
+		JOIN courses c ON c.id = p.course_id
+		JOIN users tu ON tu.id = c.teacher_id
+		LEFT JOIN bmoni_wallets w ON w.user_id = c.teacher_id
+		ORDER BY p.created_at`)
+	if err != nil {
+		log.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, status, ref, paidAt, student, course, teacher, bmoniID, vba string
+		var amount int64
+		if err := rows.Scan(&id, &status, &amount, &ref, &paidAt, &student, &course, &teacher, &bmoniID, &vba); err != nil {
+			log.Fatalf("scan: %v", err)
+		}
+		log.Printf("%-38s %-8s %6d kobo %-14s paid=%s", id, status, amount, ref, paidAt)
+		log.Printf("    student=%-30s course=%-40s teacher=%-30s", student, course, teacher)
+		log.Printf("    bmoni_user_id=%s vba=%s", bmoniID, vba)
 	}
 }
 

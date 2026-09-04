@@ -41,6 +41,13 @@ func (app *application) showRegisterForm(w http.ResponseWriter, r *http.Request)
 	data := app.newTemplateData(r)
 	data.Title = "Register"
 
+	// Landing-page CTAs link to /register?role=teacher|student — honour the
+	// param so the role dropdown is pre-selected instead of defaulting to
+	// Student for every entry point.
+	if role := r.URL.Query().Get("role"); role == "student" || role == "teacher" {
+		data.Form = map[string]string{"role": role}
+	}
+
 	app.render(w, http.StatusOK, "auth/register.html", data)
 }
 

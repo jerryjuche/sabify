@@ -42,7 +42,46 @@
 
             <h1 class="dash-greeting">Study Groups</h1>
 
-            <p class="dash-hero-sub">Learn together — groups are tied to your courses.</p>
+            <p class="dash-hero-sub">Learn together — create a group or join one tied to a course you're taking.</p>
+
+        </section>
+
+
+        <!-- Create group -->
+        <section class="dash-section fade-up">
+
+            <div class="section-card">
+
+                <div class="section-card-header">
+                    <div>
+                        <h2 class="dash-section-title">Create a study group</h2>
+                        <p class="dash-section-sub">Give it a name — optionally tie it to one of your courses.</p>
+                    </div>
+                </div>
+
+                <form action="/student/study-groups" method="POST" class="teacher-form">
+                    <div class="form-row">
+                        <div class="field-group">
+                            <label for="group-name">Group name</label>
+                            <input type="text" id="group-name" name="name" required maxlength="255"
+                                placeholder="e.g. Maths Squad — evenings">
+                        </div>
+                        <div class="field-group">
+                            <label for="group-course">Course (optional)</label>
+                            <select id="group-course" name="course_id">
+                                <option value="">General — no specific course</option>
+                                {{ range .Courses }}
+                                <option value="{{ .ID }}">{{ .Title }}</option>
+                                {{ end }}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="teacher-form-actions">
+                        <button type="submit" class="dash-button">Create group</button>
+                    </div>
+                </form>
+
+            </div>
 
         </section>
 
@@ -61,7 +100,7 @@
                         <span class="group-avatar" aria-hidden="true">{{ initials .Name }}</span>
 
                         {{ if .IsMember }}
-                        <span class="status-pill status-pill-good">Member</span>
+                        <span class="status-pill status-pill-good">Member · {{ .MemberCount }}</span>
                         {{ else }}
                         <span class="status-pill">{{ .MemberCount }} member{{ if ne .MemberCount 1 }}s{{ end }}</span>
                         {{ end }}
@@ -76,6 +115,18 @@
                     <span class="quiz-tile-course">General</span>
                     {{ end }}
 
+                    <div class="course-card-foot" style="margin-top:var(--space-3)">
+                        {{ if .IsMember }}
+                        <form action="/student/study-groups/{{ .ID }}/leave" method="POST">
+                            <button type="submit" class="dash-button dash-button-sm dash-button-outline">Leave group</button>
+                        </form>
+                        {{ else }}
+                        <form action="/student/study-groups/{{ .ID }}/join" method="POST">
+                            <button type="submit" class="dash-button dash-button-sm">Join group</button>
+                        </form>
+                        {{ end }}
+                    </div>
+
                 </article>
                 {{ end }}
 
@@ -88,7 +139,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5S13.9 16 14.5 19"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.4.2 4.1 1.5 4.7 4"/></svg>
                 </span>
                 <h3>No study groups yet</h3>
-                <p>When groups are created for your courses, they'll appear here.</p>
+                <p>Be the first — create a group above, or join one once classmates make it.</p>
             </div>
 
             {{ end }}

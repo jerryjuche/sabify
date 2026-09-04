@@ -152,6 +152,45 @@ func (m *CourseModel) UpdatePrice(ctx context.Context, id string, priceKobo *int
 	return m.DB.QueryRow(ctx, query, priceKobo, id).Scan(&updatedAt)
 }
 
+// FindByStudent returns the courses a student can study: everything they
+// enrolled in directly (free courses) plus paid courses with ACTIVE access.
+// Study-group creation uses this to offer only courses the student belongs to.
+func (m *CourseModel) FindByStudent(ctx context.Context, studentID string) ([]Course, error) {
+	query := `
+		SELECT DISTINCT c.id, c.title, c.description, c.teacher_id,
+		       c.price_kobo, c.created_at, c.updated_at
+		FROM courses c
+		LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+		LEFT JOIN course_access a ON a.course_id = c.id AND a.student_id = $1 AND a.status = 'ACTIVE'
+		WHERE e.student_id = $1 OR a.course_id IS NOT NULL
+		ORDER BY c.created_at DESC
+	`
+
+	rows, err := m.DB.Query(ctx, query, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var courses []Course
+	for rows.Next() {
+		var course Course
+		if err := rows.Scan(
+			&course.ID, &course.Title, &course.Description,
+			&course.TeacherID, &course.PriceKobo, &course.CreatedAt, &course.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		courses = append(courses, course)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return courses, nil
+}
+
 func (m *CourseModel) CountByTeacher(ctx context.Context, teacherID string) (int, error) {
 	query := `SELECT COUNT(*) FROM courses WHERE teacher_id = $1`
 

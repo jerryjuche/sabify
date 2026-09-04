@@ -397,6 +397,58 @@ func (app *application) teacherWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
+ * teacherWalletBanks serves the BMONI-supported Nigerian bank list for the
+ * logged-in teacher's wallet, as JSON. The withdraw form populates its bank
+ * selector from this endpoint so teachers never have to guess codes (the
+ * sandbox uses codes that differ from CBN's, e.g. GTBank = 000013 there).
+ */
+
+func (app *application) teacherWalletBanks(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	wallet, err := app.models.BmoniWallets.GetByUserID(r.Context(), user.ID)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+	if wallet.BmoniUserID == "" || wallet.KYCStatus != models.KYCRailActive {
+		app.notFound(w)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	banks, err := app.bmoniClient.NigerianBanks(ctx, wallet.BmoniUserID)
+	if err != nil {
+		app.logger.Warn("bmoni: bank list unavailable", "userID", wallet.BmoniUserID, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Bank list unavailable right now."})
+		return
+	}
+
+	type bankDTO struct {
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
+	out := make([]bankDTO, 0, len(banks))
+	for _, b := range banks {
+		out = append(out, bankDTO{Name: b.Name, Code: b.Code})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"banks": out})
+}
+
+/*
  * teacherWalletWithdraw runs the full BMONI payout path for the platform
  * wallet: verify → register → offramp proposal → approve → sign → submit,
  * then reports the terminal proposal status. Every step surfaces a readable
@@ -434,7 +486,7 @@ func (app *application) teacherWalletWithdraw(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if bankCode == "" {
-		flash("Enter the CBN bank code (e.g. 058 for GTBank).")
+		flash("Select a bank from the supported list.")
 		return
 	}
 

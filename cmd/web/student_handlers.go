@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"sabify/internal/models"
+	"sabify/internal/validator"
 )
 
 /*
@@ -492,13 +493,210 @@ func (app *application) studentStudyGroups(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// The student's own courses feed the "create group" course selector.
+	enrolled, err := app.models.Courses.FindByStudent(r.Context(), user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
 	data := app.newTemplateData(r)
 	data.Title = "Study Groups"
 	data.User = user
 	data.CurrentPage = "groups"
 	data.Groups = groups
+	for _, c := range enrolled {
+		data.Courses = append(data.Courses, models.CourseWithTeacher{Course: c})
+	}
 
 	app.render(w, http.StatusOK, "student/study-groups.html", data)
+}
+
+/*
+ * canStudyCourse reports whether a student may participate in a course's
+ * study group: enrolled directly (free course) or holding ACTIVE access to a
+ * paid course. PENDING access does not count — pay before collaborating.
+ */
+
+func (app *application) canStudyCourse(r *http.Request, courseID, studentID string) (bool, error) {
+	enrolled, err := app.models.Enrollments.IsEnrolled(r.Context(), courseID, studentID)
+	if err != nil {
+		return false, err
+	}
+	if enrolled {
+		return true, nil
+	}
+
+	access, err := app.models.CourseAccess.Find(r.Context(), studentID, courseID)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			return false, nil
+		}
+		return false, err
+	}
+	return access != nil && access.Status == "ACTIVE", nil
+}
+
+// studentCreateGroup wires the study-groups create form. A group may be
+// general (no course) or bound to one of the student's own courses.
+func (app *application) studentCreateGroup(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	name := strings.TrimSpace(r.Form.Get("name"))
+	courseID := strings.TrimSpace(r.Form.Get("course_id"))
+
+	v := validator.New()
+	v.CheckField(validator.NotBlank(name), "name", "Give your group a name")
+	v.CheckField(validator.MaxChars(name, 255), "name", "Group names must be 255 characters or fewer")
+
+	if courseID != "" {
+		canStudy, err := app.canStudyCourse(r, courseID, user.ID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+		if !canStudy {
+			v.CheckField(false, "course_id", "Join or unlock this course before creating its study group")
+		}
+	}
+
+	if !v.Valid() {
+		msg := "Check the group details and try again."
+		for _, field := range []string{"name", "course_id"} {
+			if m, ok := v.GetFieldErrors()[field]; ok {
+				msg = m
+				break
+			}
+		}
+		app.session.Put(r.Context(), "flash", msg)
+		http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+		return
+	}
+
+	group := &models.StudyGroup{Name: name, CourseID: courseID}
+	if err := app.models.StudyGroups.Insert(r.Context(), group); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// The creator joins automatically so the group starts with one member.
+	if err := app.models.StudyGroups.AddMember(r.Context(), group.ID, user.ID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "Study group created!")
+	http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+}
+
+// studentJoinGroup adds the student to a group. Course-bound groups require
+// enrollment/active access; general groups are open to any student.
+func (app *application) studentJoinGroup(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	groupID := chi.URLParam(r, "id")
+	group, err := app.models.StudyGroups.FindByID(r.Context(), groupID)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	if group.CourseID != "" {
+		canStudy, err := app.canStudyCourse(r, group.CourseID, user.ID)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+		if !canStudy {
+			app.session.Put(r.Context(), "flash", "Enroll in this group's course before joining.")
+			http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+			return
+		}
+	}
+
+	member, err := app.models.StudyGroups.IsMember(r.Context(), groupID, user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	if member {
+		app.session.Put(r.Context(), "flash", "You are already a member of this group.")
+		http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+		return
+	}
+
+	if err := app.models.StudyGroups.AddMember(r.Context(), groupID, user.ID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.session.Put(r.Context(), "flash", "You joined the study group.")
+	http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+}
+
+// studentLeaveGroup removes the student from a group.
+func (app *application) studentLeaveGroup(w http.ResponseWriter, r *http.Request) {
+	user := app.loadCurrentUser(w, r)
+	if user == nil {
+		return
+	}
+
+	groupID := chi.URLParam(r, "id")
+	if _, err := app.models.StudyGroups.FindByID(r.Context(), groupID); err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	member, err := app.models.StudyGroups.IsMember(r.Context(), groupID, user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	if !member {
+		app.session.Put(r.Context(), "flash", "You are not a member of this group.")
+		http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
+		return
+	}
+
+	if err := app.models.StudyGroups.RemoveMember(r.Context(), groupID, user.ID); err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// A group left empty disappears so the list stays meaningful.
+	count, err := app.models.StudyGroups.CountMembers(r.Context(), groupID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	if count == 0 {
+		if err := app.models.StudyGroups.Delete(r.Context(), groupID); err != nil {
+			app.serverError(w, err)
+			return
+		}
+	}
+
+	app.session.Put(r.Context(), "flash", "You left the study group.")
+	http.Redirect(w, r, "/student/study-groups", http.StatusSeeOther)
 }
 
 func (app *application) studentViewMaterial(w http.ResponseWriter, r *http.Request) {
@@ -522,6 +720,21 @@ func (app *application) studentViewMaterial(w http.ResponseWriter, r *http.Reque
 
 	if material.FileURL == "" {
 		app.notFound(w)
+		return
+	}
+
+	// Course materials are paywalled content: only students who are enrolled
+	// (free courses) or hold ACTIVE access (paid courses) may view the file.
+	// The raw file is never served from /static/uploads, so this handler is
+	// the only path to it.
+	canView, err := app.canStudyCourse(r, courseID, user.ID)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	if !canView {
+		app.session.Put(r.Context(), "flash", "Enroll in this course to view its materials.")
+		http.Redirect(w, r, "/student/courses/"+courseID, http.StatusSeeOther)
 		return
 	}
 

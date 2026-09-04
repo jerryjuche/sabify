@@ -163,8 +163,10 @@
 						<input type="text" id="wd-account" name="account_number" pattern="[0-9]{10}" maxlength="10" required placeholder="e.g. 0123456789">
 					</div>
 					<div class="field-group">
-						<label for="wd-bank">Bank code (CBN)</label>
-						<input type="text" id="wd-bank" name="bank_code" maxlength="3" required placeholder="e.g. 058 for GTBank">
+						<label for="wd-bank">Bank</label>
+						<input type="text" id="wd-bank" name="bank_code" list="wd-banks" maxlength="10" required placeholder="Start typing your bank…">
+						<datalist id="wd-banks"></datalist>
+						<span class="activity-meta" id="wd-banks-hint">Loading the supported bank list from BMONI…</span>
 					</div>
 					<button type="submit" class="dash-button">Withdraw</button>
 				</form>
@@ -185,4 +187,43 @@
 {{ end }}
 
 {{ define "scripts" }}
-<script src="/static/js/dashboard.js"></script>{{ end }}
+<script src="/static/js/dashboard.js"></script>
+<script>
+    (() => {
+        // Populate the bank selector from BMONI's live supported-bank list.
+        // The codes BMONI accepts are not always CBN codes (the sandbox uses
+        // its own set), so the dropdown is the source of truth; if it is
+        // unreachable the teacher can still type a code manually.
+        const datalist = document.getElementById("wd-banks");
+        const hint = document.getElementById("wd-banks-hint");
+        if (!datalist) return;
+
+        const fail = () => {
+            if (hint) hint.textContent = "Bank list unavailable — you can still type a code from BMONI's supported list.";
+        };
+
+        fetch("/teacher/wallet/banks", {
+            headers: { "Accept": "application/json" },
+            credentials: "same-origin"
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            })
+            .then((data) => {
+                if (!data || !Array.isArray(data.banks) || data.banks.length === 0) {
+                    fail();
+                    return;
+                }
+                data.banks.forEach((bank) => {
+                    const option = document.createElement("option");
+                    option.value = bank.code;
+                    option.label = bank.name + " (" + bank.code + ")";
+                    datalist.appendChild(option);
+                });
+                if (hint) hint.textContent = "Pick your bank from the list — codes are BMONI's, not CBN's.";
+            })
+            .catch(fail);
+    })();
+</script>
+{{ end }}

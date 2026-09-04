@@ -21,6 +21,12 @@ func (app *application) routes() http.Handler {
 	r.Use(sabifyMiddleware.LogRequest)
 	r.Use(sabifyMiddleware.RecoverPanic)
 
+	// Uploaded course materials live under /static/uploads on disk but are
+	// NOT part of the public site: they must only be reachable through the
+	// enrollment-gated studentViewMaterial handler. Deny raw access first so
+	// the file server below can never leak them.
+	r.Handle("/static/uploads/*", http.NotFoundHandler())
+
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./ui/static"))))
 
 	r.Get("/", app.home)
@@ -51,6 +57,7 @@ func (app *application) routes() http.Handler {
 		r.Post("/teacher/courses/{id}/materials/{materialId}/delete", app.deleteMaterial)
 		r.Post("/teacher/courses/{id}/price", app.updateCoursePrice)
 		r.Get("/teacher/wallet", app.teacherWallet)
+		r.Get("/teacher/wallet/banks", app.teacherWalletBanks)
 		r.Post("/teacher/wallet/withdraw", app.teacherWalletWithdraw)
 		r.Get("/teacher/wallet/kyc", app.teacherKYCPage)
 		r.Post("/teacher/wallet/kyc/profile", app.teacherKYCProfile)
@@ -86,6 +93,9 @@ func (app *application) routes() http.Handler {
 		r.Post("/student/quizzes/{id}/submit", app.submitQuiz)
 		r.Get("/student/results", app.studentResults)
 		r.Get("/student/study-groups", app.studentStudyGroups)
+		r.Post("/student/study-groups", app.studentCreateGroup)
+		r.Post("/student/study-groups/{id}/join", app.studentJoinGroup)
+		r.Post("/student/study-groups/{id}/leave", app.studentLeaveGroup)
 	})
 
 	return r

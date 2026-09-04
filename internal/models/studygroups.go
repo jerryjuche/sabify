@@ -82,6 +82,63 @@ func (m *StudyGroupModel) FindByCourse(ctx context.Context, courseID string) ([]
 	return groups, nil
 }
 
+// IsMember reports whether a student already belongs to a group. The join
+// handlers use it to keep the UI idempotent (membership is a composite PK,
+// so a duplicate INSERT would otherwise surface as a raw DB error).
+func (m *StudyGroupModel) IsMember(ctx context.Context, groupID, studentID string) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM study_group_members
+			WHERE study_group_id = $1 AND student_id = $2
+		)
+	`
+
+	var member bool
+	if err := m.DB.QueryRow(ctx, query, groupID, studentID).Scan(&member); err != nil {
+		return false, err
+	}
+	return member, nil
+}
+
+// CountMembers returns the number of students currently in a group. The
+// leave handler uses it to drop groups that have become empty.
+func (m *StudyGroupModel) CountMembers(ctx context.Context, groupID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM study_group_members WHERE study_group_id = $1
+	`
+
+	var count int
+	err := m.DB.QueryRow(ctx, query, groupID).Scan(&count)
+	return count, err
+}
+
+// Delete removes a group row entirely (members cascade). Used only for groups
+// whose last member left — otherwise groups would linger empty forever.
+func (m *StudyGroupModel) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM study_groups WHERE id = $1`
+
+	result, err := m.DB.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrNoRecord
+	}
+	return nil
+}
+
+// RemoveMember removes a student from a group. It is not an error to remove a
+// student who is not a member — the call is a no-op in that case.
+func (m *StudyGroupModel) RemoveMember(ctx context.Context, groupID, studentID string) error {
+	query := `
+		DELETE FROM study_group_members
+		WHERE study_group_id = $1 AND student_id = $2
+	`
+
+	_, err := m.DB.Exec(ctx, query, groupID, studentID)
+	return err
+}
+
 func (m *StudyGroupModel) AddMember(ctx context.Context, groupID, studentID string) error {
 	query := `
 		INSERT INTO study_group_members (study_group_id, student_id)
