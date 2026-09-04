@@ -120,22 +120,26 @@ func (m *PaymentModel) ListForStudent(ctx context.Context, studentID string) ([]
 	return payments, nil
 }
 
-// FindPendingForDeposit returns the most recent PENDING payment that still has
-// an unresolved (PENDING) course_access, so a BMONI deposit can be matched to
-// a student/course. Returns (nil, nil) when there is nothing to match.
-func (m *PaymentModel) FindPendingForDeposit(ctx context.Context) (*Payment, error) {
+// FindPendingForDeposit returns the oldest PENDING payment that still has an
+// unresolved (PENDING) course_access, so a BMONI deposit can be matched to a
+// student/course. teacherID, when non-empty, restricts to that teacher's
+// courses (the per-teacher wallet model); empty matches any course (legacy
+// platform-wallet behaviour). Returns (nil, nil) when nothing matches.
+func (m *PaymentModel) FindPendingForDeposit(ctx context.Context, teacherID string) (*Payment, error) {
 	query := `
 		SELECT p.id, p.student_id, p.course_id, p.amount_kobo, p.status,
 		       p.reference, p.narration_hint, p.matched_event_id, p.created_at, p.paid_at
 		FROM payments p
 		INNER JOIN course_access ca ON ca.payment_id = p.id
+		INNER JOIN courses c ON c.id = p.course_id
 		WHERE p.status = 'PENDING' AND ca.status = 'PENDING'
+		  AND ($1 = '' OR c.teacher_id = $1::uuid)
 		ORDER BY p.created_at ASC
 		LIMIT 1
 	`
 
 	var p Payment
-	err := m.DB.QueryRow(ctx, query).Scan(
+	err := m.DB.QueryRow(ctx, query, teacherID).Scan(
 		&p.ID, &p.StudentID, &p.CourseID, &p.AmountKobo, &p.Status,
 		&p.Reference, &p.NarrationHint, &p.MatchedEventID, &p.CreatedAt, &p.PaidAt,
 	)

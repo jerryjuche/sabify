@@ -51,6 +51,10 @@ func (app *application) routes() http.Handler {
 		r.Post("/teacher/courses/{id}/materials/{materialId}/delete", app.deleteMaterial)
 		r.Post("/teacher/courses/{id}/price", app.updateCoursePrice)
 		r.Get("/teacher/wallet", app.teacherWallet)
+		r.Post("/teacher/wallet/withdraw", app.teacherWalletWithdraw)
+		r.Get("/teacher/wallet/kyc", app.teacherKYCPage)
+		r.Post("/teacher/wallet/kyc/profile", app.teacherKYCProfile)
+		r.Post("/teacher/wallet/kyc/documents", app.teacherKYCDocuments)
 
 		r.Post("/teacher/courses/{id}/delete", app.deleteCourse)
 

@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"sabify/internal/bmoni"
 	"sabify/internal/models"
 )
 
@@ -74,6 +75,9 @@ type templateData struct {
 	CoursePriceNaira   int64
 	CourseAccessStatus string
 	TeacherEarnings    int64
+	BmoniBalanceNaira  int64
+	BmoniBalanceSet    bool
+	WalletTxns         []bmoni.WalletTransaction
 
 	/*
 	 * Quiz listing split.

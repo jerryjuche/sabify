@@ -35,12 +35,96 @@
 			</div>
 		</section>
 
-		{{ if .Wallet }}
+		{{ if .Flash }}<div class="dash-flash" role="status">{{ .Flash }}</div>{{ end }}
+
+		{{ if not .Wallet }}
+		{{/* No wallet yet: the teacher must complete the KYC wizard before any
+		     student can pay into her own account. */}}
 		<section class="dash-section fade-up">
 			<div class="section-card">
 				<div class="section-card-header">
 					<div>
-						<h2 class="dash-section-title">Platform deposit account</h2>
+						<h2 class="dash-section-title">Set up your wallet to receive payments</h2>
+						<p class="dash-section-sub">Complete a quick identity check and you get your own BMONI account number — students pay directly into it and you withdraw to your bank.</p>
+					</div>
+				</div>
+				<a href="/teacher/wallet/kyc" class="dash-button">Set up my wallet</a>
+			</div>
+		</section>
+		{{ else if ne .Wallet.KYCStatus "rail_active" }}
+		{{/* Wizard started but not finished — surface the exact state. */}}
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Finish your wallet setup</h2>
+						<p class="dash-section-sub">
+			{{ if .Flash }}<div class="dash-flash" role="status">{{ .Flash }}</div>{{ end }}
+
+		{{ if .Wallet.KYCError }}
+			Something went wrong: {{ .Wallet.KYCError }}
+			{{ else }}
+			Continue where you left off to activate your account.
+			{{ end }}
+						</p>
+					</div>
+					<span class="status-pill">{{ .Wallet.KYCStatus }}</span>
+				</div>
+				<a href="/teacher/wallet/kyc" class="dash-button">Continue setup</a>
+			</div>
+		</section>
+		{{ else }}
+
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Live wallet balance (BMONI)</h2>
+						<p class="dash-section-sub">The actual balance of your wallet, read directly from BMONI. This is what can be withdrawn.</p>
+					</div>
+					{{ if .BmoniBalanceSet }}
+					<span class="status-pill status-pill-good">₦{{ .BmoniBalanceNaira }}</span>
+					{{ else }}
+					<span class="status-pill">Unavailable</span>
+					{{ end }}
+				</div>
+				{{ if not .BmoniBalanceSet }}
+				<p class="activity-meta">Balance unavailable — BMONI may be unreachable. Earnings above still track confirmed course payments.</p>
+				{{ end }}
+			</div>
+		</section>
+
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Recent activity</h2>
+						<p class="dash-section-sub">Deposits and payouts on your wallet, read directly from BMONI.</p>
+					</div>
+				</div>
+				{{ if .WalletTxns }}
+				<ol class="activity-list">
+					{{ range .WalletTxns }}
+					<li class="activity-item">
+						<div>
+							<p class="activity-title">{{ .Type }} · {{ .Status }}</p>
+							<p class="activity-meta">{{ .Description }} · {{ .CreatedAt }}</p>
+						</div>
+						<span class="status-pill">{{ .Amount }} {{ .Currency }}</span>
+					</li>
+					{{ end }}
+				</ol>
+				{{ else }}
+				<p class="activity-meta">No transactions yet — deposits and payouts will appear here.</p>
+				{{ end }}
+			</div>
+		</section>
+
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Your deposit account</h2>
 						<p class="dash-section-sub">Students transfer course fees into this BMONI account.</p>
 					</div>
 				</div>
@@ -56,6 +140,39 @@
 					<label>Currency</label>
 					<p class="copy-value">{{ .Wallet.Currency }}</p>
 				</div>
+			</div>
+		</section>
+
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Withdraw to a Nigerian bank</h2>
+						<p class="dash-section-sub">Payout your wallet balance via BMONI: the account is verified with the bank, then the payout is signed with your key and submitted.</p>
+					</div>
+				</div>
+
+				{{ if .Wallet.OwnerKeyEnc }}
+				<form action="/teacher/wallet/withdraw" method="POST" class="dash-form">
+					<div class="field-group">
+						<label for="wd-amount">Amount (₦, whole Naira)</label>
+						<input type="number" id="wd-amount" name="amount" min="1" step="1" required placeholder="e.g. 2500">
+					</div>
+					<div class="field-group">
+						<label for="wd-account">Account number (10 digits)</label>
+						<input type="text" id="wd-account" name="account_number" pattern="[0-9]{10}" maxlength="10" required placeholder="e.g. 0123456789">
+					</div>
+					<div class="field-group">
+						<label for="wd-bank">Bank code (CBN)</label>
+						<input type="text" id="wd-bank" name="bank_code" maxlength="3" required placeholder="e.g. 058 for GTBank">
+					</div>
+					<button type="submit" class="dash-button">Withdraw</button>
+				</form>
+				{{ else }}
+				<div class="dash-flash" role="status" style="display:block">
+					Withdrawals are unavailable: your wallet's signing key was not stored (BMONI_WALLET_ENCRYPTION_KEY was not set when it was created).
+				</div>
+				{{ end }}
 			</div>
 		</section>
 		{{ end }}

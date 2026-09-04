@@ -31,7 +31,8 @@ go.work.sum
 # OS
 .DS_Store
 Thumbs.db
-web
+# Stray root-level binary named `web` (must NOT match cmd/web/)
+/web
 
 # Uploaded files
 ui/static/uploads/*

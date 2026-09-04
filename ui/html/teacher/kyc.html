@@ -1,0 +1,219 @@
+{{ define "styles" }}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{{ end }}
+
+{{ define "body" }}
+<div class="dash-shell">
+	{{ template "sidebar" . }}
+	<div class="dash-backdrop" data-drawer-close aria-hidden="true"></div>
+	<main class="dash-main">
+		<header class="dash-topbar">
+			<button class="dash-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false"
+				aria-controls="dash-sidebar"><span></span><span></span><span></span></button>
+			<p class="dash-topbar-title">Wallet setup</p>
+		</header>
+
+		<section class="dash-hero dash-hero-compact fade-up">
+			<div>
+				<p class="dash-eyebrow"><span class="dash-eyebrow-dot"></span>Identity check</p>
+				<h1 class="dash-greeting">Set up your wallet</h1>
+				<p class="dash-hero-sub">Three short steps: your profile, your documents, and we provision your personal BMONI account — students pay into it and you withdraw to your bank.</p>
+			</div>
+		</section>
+
+		{{ if .Flash }}<div class="dash-flash" role="status">{{ .Flash }}</div>{{ end }}
+
+		{{ if and .Wallet .Wallet.KYCError }}<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="dash-section-header">
+					<h2 class="dash-section-title">The last step did not complete</h2>
+				</div>
+				<div class="dash-flash" role="status" style="display:block">{{ .Wallet.KYCError }}</div>
+				<p class="activity-meta">Fix the problem below and submit again — nothing already done is lost.</p>
+			</div>
+		</section>{{ end }}
+
+		{{ if and .Wallet (eq .Wallet.KYCStatus "rail_active") }}
+
+		{{/* 3. Active — nothing left to do. */}}
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Your wallet is ready 🎉</h2>
+						<p class="dash-section-sub">Students now pay into your personal BMONI account below.</p>
+					</div>
+					<span class="status-pill status-pill-good">Active</span>
+				</div>
+				<div class="field-group">
+					<label>Account number</label>
+					<p class="copy-value">{{ .Wallet.VBAAccountNumber }}</p>
+				</div>
+				<div class="field-group">
+					<label>Bank</label>
+					<p class="copy-value">{{ .Wallet.VBABankName }}</p>
+				</div>
+				<a href="/teacher/wallet" class="dash-button">Go to my wallet</a>
+			</div>
+		</section>
+
+		{{ else }}
+
+		{{/* Step 1 — profile: until the profile has been saved. */}}
+		{{ $profileDone := and .Wallet (or (eq .Wallet.KYCStatus "profile_saved") (eq .Wallet.KYCStatus "documents_uploaded")) }}
+		{{ if not $profileDone }}
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Step 1 · Your profile</h2>
+						<p class="dash-section-sub">Personal details, address, and your BVN. These are verified against the identity records.</p>
+					</div>
+				</div>
+				<form action="/teacher/wallet/kyc/profile" method="POST" class="dash-form">
+					<div class="field-group">
+						<label for="first_name">First name</label>
+						<input type="text" id="first_name" name="first_name" value="{{ .Form.first_name }}" required>
+						{{ if index .FormErrors "first_name" }}<span class="error-message">{{ index .FormErrors "first_name" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="last_name">Last name</label>
+						<input type="text" id="last_name" name="last_name" value="{{ .Form.last_name }}" required>
+						{{ if index .FormErrors "last_name" }}<span class="error-message">{{ index .FormErrors "last_name" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="email">Email</label>
+						<input type="email" id="email" name="email" value="{{ .Form.email }}" required>
+						{{ if index .FormErrors "email" }}<span class="error-message">{{ index .FormErrors "email" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="phone_number">Phone number (E.164, e.g. +2348012345678)</label>
+						<input type="tel" id="phone_number" name="phone_number" value="{{ .Form.phone_number }}" required>
+						{{ if index .FormErrors "phone_number" }}<span class="error-message">{{ index .FormErrors "phone_number" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="date_of_birth">Date of birth</label>
+						<input type="date" id="date_of_birth" name="date_of_birth" value="{{ .Form.date_of_birth }}" required>
+						{{ if index .FormErrors "date_of_birth" }}<span class="error-message">{{ index .FormErrors "date_of_birth" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="gender">Gender</label>
+						<select id="gender" name="gender" required>
+							<option value="" {{ if not .Form.gender }}selected{{ end }} disabled>Choose…</option>
+							<option value="male" {{ if eq .Form.gender "male" }}selected{{ end }}>Male</option>
+							<option value="female" {{ if eq .Form.gender "female" }}selected{{ end }}>Female</option>
+						</select>
+						{{ if index .FormErrors "gender" }}<span class="error-message">{{ index .FormErrors "gender" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="bvn">BVN (11 digits)</label>
+						<input type="text" id="bvn" name="bvn" pattern="[0-9]{11}" maxlength="11" value="{{ .Form.bvn }}" required>
+						{{ if index .FormErrors "bvn" }}<span class="error-message">{{ index .FormErrors "bvn" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="source_of_funds">Source of funds</label>
+						<select id="source_of_funds" name="source_of_funds" required>
+							<option value="" {{ if not .Form.source_of_funds }}selected{{ end }} disabled>Choose…</option>
+							<option value="salary" {{ if eq .Form.source_of_funds "salary" }}selected{{ end }}>Salary</option>
+							<option value="business" {{ if eq .Form.source_of_funds "business" }}selected{{ end }}>Business</option>
+							<option value="investments" {{ if eq .Form.source_of_funds "investments" }}selected{{ end }}>Investments</option>
+							<option value="pension" {{ if eq .Form.source_of_funds "pension" }}selected{{ end }}>Pension</option>
+							<option value="government" {{ if eq .Form.source_of_funds "government" }}selected{{ end }}>Government</option>
+							<option value="inheritance" {{ if eq .Form.source_of_funds "inheritance" }}selected{{ end }}>Inheritance</option>
+							<option value="savings" {{ if eq .Form.source_of_funds "savings" }}selected{{ end }}>Savings</option>
+						</select>
+						{{ if index .FormErrors "source_of_funds" }}<span class="error-message">{{ index .FormErrors "source_of_funds" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="street">Street address</label>
+						<input type="text" id="street" name="street" value="{{ .Form.street }}" required>
+						{{ if index .FormErrors "street" }}<span class="error-message">{{ index .FormErrors "street" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="city">City</label>
+						<input type="text" id="city" name="city" value="{{ .Form.city }}" required>
+						{{ if index .FormErrors "city" }}<span class="error-message">{{ index .FormErrors "city" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="state">State</label>
+						<input type="text" id="state" name="state" value="{{ .Form.state }}" required>
+						{{ if index .FormErrors "state" }}<span class="error-message">{{ index .FormErrors "state" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="postal_code">Postal code</label>
+						<input type="text" id="postal_code" name="postal_code" value="{{ .Form.postal_code }}">
+					</div>
+					<button type="submit" class="dash-button">Save profile</button>
+				</form>
+			</div>
+		</section>
+		{{ end }}
+
+		{{/* Step 2 — documents: once the profile is saved and until the rail is active. */}}
+		{{ if and .Wallet (or (eq .Wallet.KYCStatus "profile_saved") (eq .Wallet.KYCStatus "documents_uploaded")) }}
+		<section class="dash-section fade-up">
+			<div class="section-card">
+				<div class="section-card-header">
+					<div>
+						<h2 class="dash-section-title">Step 2 · Identity documents</h2>
+						<p class="dash-section-sub">Upload clear images (JPEG/PNG, at least 2KB each). We verify them, then provision your account.</p>
+					</div>
+				</div>
+				<form action="/teacher/wallet/kyc/documents" method="POST" class="dash-form" enctype="multipart/form-data">
+					<div class="field-group">
+						<label for="id_type">ID document type</label>
+						<select id="id_type" name="id_type" required>
+							<option value="" {{ if not .Form.id_type }}selected{{ end }} disabled>Choose…</option>
+							<option value="passport" {{ if eq .Form.id_type "passport" }}selected{{ end }}>International passport</option>
+							<option value="national_id" {{ if eq .Form.id_type "national_id" }}selected{{ end }}>National ID card</option>
+							<option value="drivers_license" {{ if eq .Form.id_type "drivers_license" }}selected{{ end }}>Driving licence</option>
+						</select>
+						{{ if index .FormErrors "id_type" }}<span class="error-message">{{ index .FormErrors "id_type" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="id_number">ID document number</label>
+						<input type="text" id="id_number" name="id_number" value="{{ .Form.id_number }}" required>
+						{{ if index .FormErrors "id_number" }}<span class="error-message">{{ index .FormErrors "id_number" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="id_document">ID document image</label>
+						<input type="file" id="id_document" name="id_document" accept="image/*" required>
+						{{ if index .FormErrors "id_document" }}<span class="error-message">{{ index .FormErrors "id_document" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="poa_type">Proof-of-address type</label>
+						<select id="poa_type" name="poa_type">
+							<option value="bank_statement" {{ if eq .Form.poa_type "bank_statement" }}selected{{ end }}>Bank statement</option>
+							<option value="utility_bill" {{ if eq .Form.poa_type "utility_bill" }}selected{{ end }}>Utility bill</option>
+							<option value="rental_agreement" {{ if eq .Form.poa_type "rental_agreement" }}selected{{ end }}>Rental agreement</option>
+							<option value="tax_document" {{ if eq .Form.poa_type "tax_document" }}selected{{ end }}>Tax document</option>
+						</select>
+					</div>
+					<div class="field-group">
+						<label for="proof_of_address">Proof of address</label>
+						<input type="file" id="proof_of_address" name="proof_of_address" accept="image/*" required>
+						{{ if index .FormErrors "proof_of_address" }}<span class="error-message">{{ index .FormErrors "proof_of_address" }}</span>{{ end }}
+					</div>
+					<div class="field-group">
+						<label for="selfie">Selfie</label>
+						<input type="file" id="selfie" name="selfie" accept="image/*" required>
+						{{ if index .FormErrors "selfie" }}<span class="error-message">{{ index .FormErrors "selfie" }}</span>{{ end }}
+					</div>
+					<button type="submit" class="dash-button">Submit documents &amp; activate</button>
+					<p class="activity-meta">This provisions your BMONI wallet and account number — it can take a few seconds.</p>
+				</form>
+			</div>
+		</section>
+		{{ end }}
+
+		{{ end }}
+
+		<footer class="dash-footer">
+			<p>Sabify · Learning Intelligence · {{ .CurrentYear }}</p>
+		</footer>
+	</main>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script src="/static/js/dashboard.js"></script>{{ end }}

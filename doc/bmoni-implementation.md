@@ -19,7 +19,10 @@ Paid course enrollment is now implemented end-to-end:
   transfer to the platform's BMONI virtual account (VBA), then the course
   unlocks automatically once BMONI's webhook confirms the deposit.
 - A teacher **Wallet** page shows confirmed earnings (sum of paid fees across
-  the teacher's courses) plus the platform deposit account.
+  the teacher's courses), the **live** BMONI balance of the platform wallet,
+  the platform deposit account, and (when the owner key is stored) a
+  withdrawal form that pays out to any Nigerian bank via BMONI's
+  verify → register → offramp → sign flow.
 
 This follows the **platform-wallet** model chosen during design (one
 platform-owned BMONI wallet collects all fees; students pay by bank transfer,
@@ -45,9 +48,9 @@ no per-student KYC, no wallet-to-wallet transfers).
 ### New BMONI client (`internal/bmoni/`)
 | File | Contents |
 |---|---|
-| `client.go` | `Client` HTTP wrapper + `x-api-key`, `Balances`, `DepositAccount` |
-| `lifecycle.go` | `CreateUser`, `CreateWallet` (owner-proof → EIP-191 sign → `create-managed`), `StartNigeria`, `BVNLookup`, `ActivateKYC`, `waitForVBA` |
-| `signing.go` | `OwnerKey` secp256k1 + EIP-191 / raw-digest signing (go-ethereum) |
+| `client.go` | `Client` HTTP wrapper + `x-api-key`, `Balances`, `DepositAccount`, `ResolveUserByPhone` (recovery), `BindVBA` (re-point deposits to a fresh wallet), `NigerianBanks`, `VerifyNigerianAccount`, `RegisterWithdrawalAccount`, `CreateOfframp`, `ApproveProposal`, `SignPayload`, `SubmitProposalSignature`, `GetProposal` |
+| `lifecycle.go` | `CreateUser`, `CreateWallet` (owner-proof → EIP-191 sign → `create-managed`), `StartNigeria`, `LookupBVN` / `BVNLookup`, `ActivateKYC`, `waitForVBA` |
+| `signing.go` | `OwnerKey` secp256k1 + EIP-191 / raw-digest signing (go-ethereum), `EncryptOwnerKey` / `DecryptOwnerKey` (AES-256-GCM at rest), `signing_test.go` (BMONI's published test vector) |
 | `webhook.go` | `VerifyWebhookSignature` (HMAC-SHA256 over raw body) |
 
 ### New handler file (`cmd/web/bmoni_handlers.go`)
@@ -57,12 +60,13 @@ no per-student KYC, no wallet-to-wallet transfers).
 | `studentPay` | `GET /student/pay/{paymentId}` |
 | `studentPayStatus` | `GET /student/pay/{paymentId}/status` |
 | `teacherWallet` | `GET /teacher/wallet` |
+| `teacherWalletWithdraw` | `POST /teacher/wallet/withdraw` |
 
 ### New templates / assets
 | File | Purpose |
 |---|---|
 | `ui/html/student/pay.html` | Deposit screen (account no., bank, amount, reference, status pill, copy buttons, "I've paid" button) |
-| `ui/html/teacher/wallet.html` | Teacher earnings + platform deposit account |
+| `ui/html/teacher/wallet.html` | Teacher earnings + live BMONI balance + platform deposit account + withdrawal form |
 | `ui/static/js/pay-status.js` | 3-second poller that flips the page to "Payment confirmed" and reloads |
 
 ### Modified files
@@ -154,17 +158,24 @@ Student                           SABIFY (Go)                    BMONI
   `BMONI_WEBHOOK_SECRET` is configured; rejects forgery with `401`.
 - De-duplicates on `event_id` via `webhook_events` (`ON CONFLICT DO NOTHING`);
   replays are acknowledged but not re-processed.
-- Acknowledges `200` fast and processes `employee.deposit.completed` in a
-  goroutine (BMONI times out deliveries at ~10s; a `4xx`/`5xx` here could
-  trigger a duplicate retry).
+- Processes `employee.deposit.completed` **synchronously** (the work is a
+  handful of fast DB statements, comfortably inside BMONI's ~10s delivery
+  timeout). A failure returns `500` so BMONI retries; because the dedupe row
+  is written **only after** successful processing, a retry actually
+  re-processes instead of being swallowed. Any other `4xx` would discard the
+  delivery forever, so internal errors never return `4xx`.
 
-### Matching caveat (known limitation)
-BMONI's deposit webhook carries no per-payment reference, so deposits are
-matched **first-come-first-served** against the oldest unresolved PENDING
-payment (`FindPendingForDeposit`). The narration/reference shown to the student
-is for human reconciliation. For a deterministic demo, keep only one in-flight
-payment at a time. This mirrors the design risk R-3 recorded in the research
-docs.
+### Matching caveat (improved in the shipped handlers)
+BMONI's deposit webhook carries **no per-payment reference**, but it does
+carry the deposit `amount` (`payload.amount`, decimal NGN) and the BMONI
+`userId` it landed in. `processBmoniDeposit` therefore: (1) only considers
+deposits into the platform wallet's BMONI user, and (2) matches the deposit
+amount (converted to kobo) against the oldest unresolved PENDING payment
+(`FindPendingForDeposit`). A mismatch leaves the payment locked and logs a
+warning — this keeps unrelated wallet funding (e.g. sandbox test credits) or
+under/over payments from unlocking a course. The narration/reference shown to
+the student remains for human reconciliation. For a fully deterministic demo,
+keep only one in-flight payment at a time.
 
 ---
 
@@ -182,9 +193,11 @@ BMONI_WALLET_ENCRYPTION_KEY=...
 
 - `BMONI_BASE_URL` defaults to the sandbox origin if unset.
 - `BMONI_WEBHOOK_SECRET` — when set, the webhook **requires** a valid HMAC.
-- `BMONI_WALLET_ENCRYPTION_KEY` — reserved for at-rest encryption of the
-  platform owner key (the bootstrap tool currently prints the address and
-  leaves key storage to the operator).
+- `BMONI_WALLET_ENCRYPTION_KEY` — AES-256-GCM key that seals the wallet
+  owner private key at rest (`bmoni_wallets.owner_key_enc`). The bootstrap
+  tool encrypts and stores it when this var is set; without it the owner key
+  is not persisted and **teacher withdrawals are unavailable** (deposits and
+  enrollment still work — money-in needs no signing).
 
 ---
 
@@ -202,11 +215,16 @@ Requires `BMONI_API_KEY` + these env vars for the DB; uses the sandbox
 "Bunch Dillon" persona so KYC passes automatically:
 
 ```bash
-BMONI_API_KEY=... go run ./tools/bmoni-bootstrap
+BMONI_API_KEY=... BMONI_WALLET_ENCRYPTION_KEY=$(openssl rand -hex 32) go run ./tools/bmoni-bootstrap
 ```
 
 The resulting VBA number + bank are stored in `bmoni_wallets` and shown on the
-student payment page and teacher wallet page.
+student payment page and teacher wallet page. Re-running is idempotent, and a
+`409` from `POST /v1/users` (an earlier run already created the user) is
+handled by recovering the existing user + NGN wallet via
+`GET /v1/smart-wallets/by-phone` instead of forking wallet history — but a
+recovered wallet's original owner key is unrecoverable, so withdrawals stay
+disabled for it.
 
 ### 3. Run the app
 ```bash
@@ -231,23 +249,139 @@ startup).
 
 - Per-student / per-teacher BMONI wallets and wallet-to-wallet transfers
   (requires per-user KYC — rejected by design).
-- Teacher bank offramp / withdrawal to a Nigerian bank (documented as a future
-  bonus beat; the wallet page shows balances, not withdrawal).
-- Webhook balance-polling fallback ("Check now" currently just reloads and
-  re-queries the local DB status; wiring it to BMONI `GET /balances` is a
-  follow-up).
-- Test files (repo still has zero `*_test.go`; `make test` passes vacuously per
-  `AGENTS.md`).
+- A webhook balance-polling fallback is not needed in code: the payment page
+  already polls local status, and the teacher wallet reads the **live** BMONI
+  balance directly (best-effort; degrades to "unavailable" on API errors).
+- ~~Test files~~ — **added**: `cmd/web/bmoni_e2e_test.go` walks the entire
+  paid-enrollment flow through the real HTTP stack against an embedded
+  PostgreSQL (see §9), and `internal/bmoni/signing_test.go` pins the signing
+  implementation to BMONI's published test vector.
+
+### Withdrawal (teacher payout) — shipped, with a caveat
+`POST /teacher/wallet/withdraw` runs the full BMONI payout path for the
+platform wallet: verify → register → offramp proposal → approve → sign
+(raw-digest, v = 27/28) → submit → poll to terminal status. The form renders
+only when `bmoni_wallets.owner_key_enc` is present; otherwise the wallet page
+explains that the owner key was never stored and points at the bootstrap tool.
+Sandbox note: the sandbox resolves **no test bank accounts** for
+`verify-nigerian-account` (only the identity personas), so withdrawal
+verification returns `400 E101` for any account number — correct sandbox
+behavior, not a bug. **Updated 2026-09-04:** this was observed on the old
+platform-wallet user; a *fresh persona teacher* passed verification and
+account registration fine and was instead blocked at offramp creation with
+`403 E503` because the sandbox wallet is unfunded (see
+`doc/bmoni-teacher-kyc.md` §12).
+
+**Why the current sandbox wallet cannot withdraw (verified live 2026-09-03):**
+the platform wallet on the shared sandbox key was created on 2026-07-30,
+before the owner-key encryption feature existed, so its key was never
+persisted and is unrecoverable. Recovery attempts are all dead ends:
+
+| Attempt | Result |
+|---|---|
+| Rotate the owner key | No such endpoint exists (checked the full OpenAPI spec) |
+| Create a second CNGN wallet on the same user | `409 E502 This item already exists` — one wallet per currency per user |
+| Delete the user, re-create with the persona phone | Docs: deletion does **not** produce a fresh account; identifiers stay bound |
+| Create a new user with any other phone | `409 User already exists` — the shared key's namespace is shared/polluted |
+
+**The sanctioned path to a withdrawal-capable wallet:** get a **dedicated
+sandbox API key** from developers@bkey.me (fresh partner namespace), then run
+the bootstrap tool on it **before** anyone else creates the persona user:
+
+```bash
+BMONI_API_KEY=<your-key> BMONI_WALLET_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+  go run ./tools/bmoni-bootstrap -persona bunch
+```
+
+The tool now supports `-persona bunch|samson`, pulls the persona's exact KYC
+record via the fetch-only BVN lookup (the docs' recommended order, which
+guarantees the name/DOB match), binds the VBA to the wallet, and stores the
+owner key encrypted at rest. `bmoni_wallets` rows without a stored key are
+removed after a fresh provision so the app cannot pick a locked wallet
+(`GetPlatform` also prefers a wallet with `owner_key_enc` set).
 
 ---
 
-## 9. Normalization / correctness notes for future work
+## 9. End-to-end test
 
-- The deposit-matching heuristic (`FindPendingForDeposit`) is the main known
-  fragility — improve by matching against `narration_hint`/amount when BMONI
-  exposes a reference, or pair each student's payment with a manual-confirm
-  admin path.
-- `BMONI_WALLET_ENCRYPTION_KEY` is defined but the bootstrap tool does not yet
-  encrypt the owner key at rest — encrypt before storing for production.
+`cmd/web/bmoni_e2e_test.go` (`TestBmoniPaidEnrollmentE2E`) verifies the full
+payment integration with **no mocks** — the real Chi router, session/auth
+middleware, handlers, models and a real PostgreSQL:
+
+1. Registers + logs in a teacher and student over HTTP.
+2. Teacher creates a paid course (₦2,500); student enrolls and is redirected
+   to the payment page, which shows the platform VBA, bank, amount and
+   `SABIFY-*` reference.
+3. Rejects a **forged webhook signature** (401) and ignores deposits for
+   **unknown BMONI users** and **mismatched amounts** (course stays locked).
+4. Delivers a correctly signed `employee.deposit.completed` → asserts
+   `payments` PAID with `matched_event_id`, `course_access` ACTIVE, enrollment
+   recorded, the poller returns `{"status":"PAID"}`, the course list unlocks,
+   and the teacher wallet shows ₦2,500.
+5. Asserts **idempotent replay** (same event id → no double enrollment) and
+   completes a **second purchase** (₦5,000) incl. a wrong-amount rejection,
+   ending with ₦7,500 total earnings.
+
+The test provisions PostgreSQL automatically via
+`github.com/fergusstrange/embedded-postgres` (binaries downloaded on first
+run) and rebuilds the schema from `migrations/*` on every run. On machines
+with an existing database, point `TEST_DATABASE_URL` at it and the embedded
+instance is skipped:
+
+```bash
+go test ./cmd/web/ -run TestBmoniPaidEnrollmentE2E -v
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/sabify_test?sslmode=disable \
+  go test ./cmd/web/ -run TestBmoniPaidEnrollmentE2E -v
+```
+
+## 10. Normalization / correctness notes for future work
+
+- The deposit-matching heuristic (`FindPendingForDeposit` + amount match in
+  `processBmoniDeposit`) is the main known fragility — two in-flight payments
+  for the same amount are indistinguishable. Improve by matching against
+  `narration_hint`/reference when BMONI exposes one, or pair each student's
+  payment with a manual-confirm admin path. Keep one in-flight payment at a
+  time for a deterministic demo.
 - The webhook only processes `employee.deposit.completed` today; other
   `employee.*` / `wallet.*` events are recorded in `webhook_events` but ignored.
+- The balances endpoint reports currency as `"NGN"` (and amount as `"balance"`)
+  while other endpoints use the `CNGN` stablecoin code — the client accepts
+  both.
+- The live-sandbox wallet created on 2026-07-30 predates the owner-key
+  encryption feature; its key was never persisted, so withdrawals on it are
+  disabled. Provisioning a **fresh** wallet with the tool (with
+  `BMONI_WALLET_ENCRYPTION_KEY` set) is the path to a fully withdrawal-capable
+demo.
+
+---
+
+## 11. Live sandbox walkthrough (2026-09-03)
+
+Validated against the real sandbox (`https://embedded-dev.bmoni.com`, shared
+key) and a real server on `:4000` with an embedded PostgreSQL:
+
+1. Registered teacher + student over HTTP; logged both in (role checks OK).
+2. Teacher created a paid course (₦2,500); student enrolled → redirected to
+   `/student/pay/{id}` which rendered the **live VBA `7962860461`
+   (PROVIDUS BANK)**, the amount, and reference `SABIFY-b9fe8ac7-d4e18bb5`.
+3. Status endpoint reported `PENDING`; a **forged webhook signature → 401**.
+4. A correctly HMAC-signed `employee.deposit.completed` (amount `2500.00`,
+   platform `userId`) → `200`, payment → `PAID` (`matched_event_id` set),
+   `course_access` → `ACTIVE`, `course_enrollments` +1, and the poller
+   returned `{"status":"PAID"}`.
+5. Replaying the same event id → `200`, no duplicate processing (ledger: 1
+   row, payments: 1 row, enrollments: 1 row).
+6. Teacher wallet rendered earnings `₦2,500`, the **live BMONI balance `₦0`**
+   (wallet unfunded — sandbox test tokens are credited manually) and the VBA;
+   the withdrawal form was correctly hidden (owner key not stored) and a
+   direct `POST /teacher/wallet/withdraw` flashed the friendly explanation
+   instead of erroring.
+7. Live API checks: `nigerian-banks` returned the full CBN list;
+   `verify-nigerian-account` correctly returned `400 E101` for a made-up
+   account (sandbox has no test bank accounts, only identity personas);
+   `by-phone` recovery returned the existing user + NGN wallet.
+
+**Found and fixed during the walkthrough:** the client called the wrong
+balances path (`/balances` → `/smart-wallets/account/balances`) and matched
+currency `CNGN`/`NGN` and amount field `balance`/`amount` — the teacher
+wallet previously showed "Balance unavailable" even though BMONI answered.
