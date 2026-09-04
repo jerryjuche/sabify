@@ -129,6 +129,8 @@
 {{ define "scripts" }}
 
 <script src="/static/js/dashboard.js"></script>
+{{ if ne .Payment.Status "PAID" }}
 <script src="/static/js/pay-status.js" data-payment-id="{{ .Payment.ID }}"></script>
+{{ end }}
 
 {{ end }}

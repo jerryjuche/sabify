@@ -7,6 +7,11 @@
   var message = document.getElementById("pay-confirm-message");
   if (!pill) return;
 
+  // If the server already rendered the confirmed state (payment was PAID
+  // when this page loaded), stop here: polling would see PAID on every tick
+  // and schedule an endless reload loop.
+  if (pill.getAttribute("data-status") === "PAID") return;
+
   function render(status) {
     if (status === "PAID") {
       pill.textContent = "Payment confirmed";
